@@ -1,0 +1,13 @@
+/* CSS for RocketChatXBlock */
+
+.rocketc_block .count {
+    font-weight: bold;
+}
+
+.rocketc_block p {
+    cursor: pointer;
+}
+
+.rocketc_block p:hover {
+	background-color: red;
+}

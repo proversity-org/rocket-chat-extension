@@ -1,0 +1,4 @@
+[console_scripts]
+edx_lint = edx_lint.cmd.main:main
+lint-amnesty = edx_lint.cmd.amnesty:pylint_amnesty
+
