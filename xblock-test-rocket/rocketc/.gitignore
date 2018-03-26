@@ -1,0 +1,3 @@
+*.pyc
+/rocketc_xblock.egg-info/
+*.coverage
