@@ -42,6 +42,7 @@ class RocketChatXBlock(XBlock):
         response = self.login(self.username)
         if response['success']:
             self.response = response['data']
+            self.add_to_course_group(self.course, self.response['userId'])
         else:
             self.response = response['errorType']
         html = self.resource_string("static/html/rocketc.html")
@@ -92,6 +93,7 @@ class RocketChatXBlock(XBlock):
         user = runtime.service(self, 'user').get_current_user()
         self.email = user.emails[0]
         self.username = user.opt_attrs['edx-platform.username']
+        self.course = runtime.course_id.course
 
     def get_admin_token_and_id(self):
         """
@@ -104,20 +106,23 @@ class RocketChatXBlock(XBlock):
         self.admin_userId = r.json()["data"]["userId"]
 
     def search_rocket_chat_user(self, username):
-
+        """
+        """
         url_path = "{}?{}={}".format("users.info", "username", username)
+
         return self.request_rocket_chat("get", url_path)
 
     def login(self, username):
         """
         """
-        user_rocket_chat = self.search_rocket_chat_user(username)
+        rocket_chat_user = self.search_rocket_chat_user(username)
 
-        if user_rocket_chat['success']:
+        if rocket_chat_user['success']:
             data = self.create_token(username)
 
         else:
-            self.create_user(self.anonymous_student_id, self.email, self.username)
+            self.create_user(self.anonymous_student_id,
+                             self.email, self.username)
             data = self.create_token(username)
 
         return data
@@ -126,7 +131,7 @@ class RocketChatXBlock(XBlock):
         """
         """
         url_path = "users.createToken"
-        data = {'username':username}
+        data = {'username': username}
         return self.request_rocket_chat("post", url_path, data)
 
     def change_role(self):
@@ -135,14 +140,40 @@ class RocketChatXBlock(XBlock):
         self.change = self.request_rocket_chat(
             "post", "users.update", data)["success"]
 
-    # def get_userId(self, userName):
-
     def create_user(self, name, email, username):
         """
         """
         data = {"name": name, "email": email,
                 "password": "edx", "username": username}
         return self.request_rocket_chat("post", "users.create", data)
+
+    def add_to_course_group(self, groupname, userid):
+
+        rocket_chat_group = self.search_rocket_chat_group(groupname)
+
+        if rocket_chat_group['success']:
+            self.add_to_group(userid, rocket_chat_group['group']['_id'])
+        else:
+            rocket_chat_group = self.create_group(groupname)
+            self.add_to_group(userid, rocket_chat_group['group']['_id'])
+
+        self.group = self.search_rocket_chat_group(groupname)
+
+    def search_rocket_chat_group(self, name):
+
+        url_path = "{}?{}={}".format("groups.info", "roomName", name)
+        return self.request_rocket_chat("get", url_path)
+
+    def add_to_group(self, userid, roomid):
+
+        url_path = "groups.invite"
+        data = { "roomId": roomid, "userId": userid }
+        return self.request_rocket_chat("post", url_path, data)
+
+    def create_group(self, name):
+        url_path = "groups.create"
+        data = {"name": name}
+        self.request_rocket_chat("post", url_path, data)
 
     def add_to_channel(self, roomname, username):
         roomId = get_roomId(roomname)
