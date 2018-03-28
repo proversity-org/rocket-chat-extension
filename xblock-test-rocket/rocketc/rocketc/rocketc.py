@@ -9,6 +9,7 @@ import requests
 import json
 
 
+@XBlock.wants("user")
 class RocketChatXBlock(XBlock):
     """
     TO-DO: document what your XBlock does.
@@ -38,6 +39,7 @@ class RocketChatXBlock(XBlock):
         self.get_admin_token_and_id()
         self.get_and_set_user()
         self.change_role()
+        self.search_rocket_chat_user()
         html = self.resource_string("static/html/rocketc.html")
         frag = Fragment(html.format(self=self))
         frag.add_css(self.resource_string("static/css/rocketc.css"))
@@ -78,10 +80,18 @@ class RocketChatXBlock(XBlock):
 #/////////////////////////////////////////////////////////////////////////
 
     def get_and_set_user(self):
-        role = self.xmodule_runtime
-        self.role = role.get_user_role()
+        """
+        """
+        runtime = self.xmodule_runtime
+        self.role = runtime.get_user_role()
+        self.anonymous_student_id = runtime.anonymous_student_id
+        user = runtime.service(self, 'user').get_current_user()
+        self.email = user.emails[0]
+        self.username = user.opt_attrs['edx-platform.username']
 
     def get_admin_token_and_id(self):
+        """
+        """
         url = "{}/{}".format(self.url_prefix, "login")
         data = {"user": "andrey92", "password": "edunext"}
         headers = {"Content-type": "application/json"}
@@ -89,13 +99,19 @@ class RocketChatXBlock(XBlock):
         self.admin_authToken = r.json()["data"]["authToken"]
         self.admin_userId = r.json()["data"]["userId"]
 
+    def search_rocket_chat_user(self):
+
+        path = "{}?{}={}".format("users.info", "username", self.username)
+        self.success = self.request_rocket_chat(path)
+
     def change_role(self):
 
         data = {"userId": "test1234", "data": {"roles": "['bot']"}}
         self.change = self.request_rocket_chat("users.update", data)["success"]
 
-    def create_user(self):
+    # def get_userId(self, userName):
 
+    def create_user(self):
         data = {"name": "test1", "email": "email@user.tld",
                 "password": "1234", "username": "uniqueusername"}
         return self.request_rocket_chat("users.create", data)["success"]
@@ -103,9 +119,8 @@ class RocketChatXBlock(XBlock):
     def add_to_channel(self, roomName, userName):
         roomId = get_roomId(roomName)
         userId = get_userId(userName)
-        data = {"roomId":roomId, "userId": userId}
+        data = {"roomId": roomId, "userId": userId}
         request_rocket_chat("channels.invite", data)
-
 
     def get_roomId(self, roomName):
 
