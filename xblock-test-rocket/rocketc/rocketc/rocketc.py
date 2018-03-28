@@ -39,7 +39,11 @@ class RocketChatXBlock(XBlock):
         self.get_admin_token_and_id()
         self.get_and_set_user()
         self.change_role()
-        self.search_rocket_chat_user()
+        response = self.login(self.username)
+        if response['success']:
+            self.response = response['data']
+        else:
+            self.response = response['errorType']
         html = self.resource_string("static/html/rocketc.html")
         frag = Fragment(html.format(self=self))
         frag.add_css(self.resource_string("static/css/rocketc.css"))
@@ -99,38 +103,65 @@ class RocketChatXBlock(XBlock):
         self.admin_authToken = r.json()["data"]["authToken"]
         self.admin_userId = r.json()["data"]["userId"]
 
-    def search_rocket_chat_user(self):
+    def search_rocket_chat_user(self, username):
 
-        path = "{}?{}={}".format("users.info", "username", self.username)
-        self.success = self.request_rocket_chat(path)
+        url_path = "{}?{}={}".format("users.info", "username", username)
+        return self.request_rocket_chat("get", url_path)
+
+    def login(self, username):
+        """
+        """
+        user_rocket_chat = self.search_rocket_chat_user(username)
+
+        if user_rocket_chat['success']:
+            data = self.create_token(username)
+
+        else:
+            self.create_user(self.anonymous_student_id, self.email, self.username)
+            data = self.create_token(username)
+
+        return data
+
+    def create_token(self, username):
+        """
+        """
+        url_path = "users.createToken"
+        data = {'username':username}
+        return self.request_rocket_chat("post", url_path, data)
 
     def change_role(self):
 
         data = {"userId": "test1234", "data": {"roles": "['bot']"}}
-        self.change = self.request_rocket_chat("users.update", data)["success"]
+        self.change = self.request_rocket_chat(
+            "post", "users.update", data)["success"]
 
     # def get_userId(self, userName):
 
-    def create_user(self):
-        data = {"name": "test1", "email": "email@user.tld",
-                "password": "1234", "username": "uniqueusername"}
-        return self.request_rocket_chat("users.create", data)["success"]
+    def create_user(self, name, email, username):
+        """
+        """
+        data = {"name": name, "email": email,
+                "password": "edx", "username": username}
+        return self.request_rocket_chat("post", "users.create", data)
 
-    def add_to_channel(self, roomName, userName):
-        roomId = get_roomId(roomName)
-        userId = get_userId(userName)
+    def add_to_channel(self, roomname, username):
+        roomId = get_roomId(roomname)
+        userId = get_userId(username)
         data = {"roomId": roomId, "userId": userId}
-        request_rocket_chat("channels.invite", data)
+        self.request_rocket_chat("post", "channels.invite", data)
 
-    def get_roomId(self, roomName):
+    def get_roomId(self, roomname):
 
-        url_path = "{}?{}".format("channels.info", roomName)
-        return self.request_rocket_chat(url_path)["channel"]["_id"]
+        url_path = "{}?{}".format("channels.info", roomname)
+        return self.request_rocket_chat("get", url_path)["channel"]["_id"]
 
-    def request_rocket_chat(self, url_path, data=None):
+    def request_rocket_chat(self, method, url_path, data=None):
 
         headers = {"X-Auth-Token": self.admin_authToken,
                    "X-User-Id": self.admin_userId, "Content-type": "application/json"}
         url = "{}/{}".format(self.url_prefix, url_path)
-        r = requests.post(url=url, json=data, headers=headers)
+        if method == "post":
+            r = requests.post(url=url, json=data, headers=headers)
+        else:
+            r = requests.get(url=url, headers=headers)
         return r.json()
