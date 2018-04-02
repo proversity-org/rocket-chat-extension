@@ -20,11 +20,3 @@ function RocketChatXBlock(runtime, element) {
         /* Here's where you'd do things on page load. */
     });
 }
-
-function injectJS(){
-    var iFrameHead = window.frames["myiframe"].document.getElementsByTagName("head")[0];         
-    var myscript = document.createElement('script');
-    myscript.type = 'text/javascript';
-    // myscript.src = 'myscript.js'; // replace this with your SCRIPT
-    iFrameHead.appendChild(myscript);
-}

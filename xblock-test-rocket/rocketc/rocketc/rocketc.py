@@ -38,11 +38,15 @@ class RocketChatXBlock(XBlock):
         when viewing courses.        """
         self.get_admin_token_and_id()
         self.get_and_set_user()
-        self.change_role()
+        self.change = None 
         response = self.login(self.username)
         if response['success']:
             self.response = response['data']
-            self.add_to_course_group(self.course, self.response['userId'])
+            self.authToken = self.response['authToken']
+            self.userid = self.response['userId']
+            self.add_to_course_group(self.course, self.userid)
+            if self.role == "instructor":
+                self.change_role(self.userid)
         else:
             self.response = response['errorType']
         html = self.resource_string("static/html/rocketc.html")
@@ -134,11 +138,11 @@ class RocketChatXBlock(XBlock):
         data = {'username': username}
         return self.request_rocket_chat("post", url_path, data)
 
-    def change_role(self):
+    def change_role(self, userid):
 
-        data = {"userId": "test1234", "data": {"roles": "['bot']"}}
+        data = {"userId": userid, "data": {"roles": ["bot"]}}
         self.change = self.request_rocket_chat(
-            "post", "users.update", data)["success"]
+            "post", "users.update", data)['success']
 
     def create_user(self, name, email, username):
         """
@@ -167,7 +171,7 @@ class RocketChatXBlock(XBlock):
     def add_to_group(self, userid, roomid):
 
         url_path = "groups.invite"
-        data = { "roomId": roomid, "userId": userid }
+        data = {"roomId": roomid, "userId": userid}
         return self.request_rocket_chat("post", url_path, data)
 
     def create_group(self, name):
