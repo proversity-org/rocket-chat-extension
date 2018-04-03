@@ -1,3 +1,5 @@
 *.pyc
 /rocketc_xblock.egg-info/
+/venv/
+/.tox/
 *.coverage

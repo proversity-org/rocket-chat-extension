@@ -8,7 +8,7 @@ class TestRocketChat(unittest.TestCase):
         """"""
         self.admin_data["auth_token"] = ""
         self.admin_data["user_id"] = ""
-    
+
 
     def test_request_rocket_chat(self):
         """"""
