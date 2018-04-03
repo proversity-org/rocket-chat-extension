@@ -7,7 +7,9 @@ import requests
 from xblock.core import XBlock
 from xblock.fields import Integer, Scope, String
 from xblock.fragment import Fragment
+from xblockutils.resources import ResourceLoader
 
+LOADER = ResourceLoader(__name__)
 
 @XBlock.wants("user")
 class RocketChatXBlock(XBlock):
@@ -18,11 +20,14 @@ class RocketChatXBlock(XBlock):
     # Fields are defined on the class.  You can access them in your code as
     # self.<fieldname>.
 
-    # TO-DO: delete count, and define your own fields.
     count = Integer(
         default=0, scope=Scope.user_state,
         help="A simple counter, to show something happening",
     )
+    rocket_chat_role = String(
+        default="user", scope=Scope.user_state,
+        help="The defined role in rocketChat"
+        )
 
     url_prefix = "http://192.168.0.16:3000/api/v1"
     salt = "HarryPotter_y_elPrisonero_deAzkaban"
@@ -32,29 +37,36 @@ class RocketChatXBlock(XBlock):
         data = pkg_resources.resource_string(__name__, path)
         return data.decode("utf8")
 
-    # TO-DO: change this view to display your data your own way.
     def student_view(self, context=None):
         """
         The primary view of the RocketChatXBlock, shown to students
-        when viewing courses.        """
-        self.get_admin_token_and_id()
-        self.get_and_set_user()
-        self.change = None
-        response = self.login(self.username)
-        if response['success']:
-            self.response = response['data']
-            self.auth_token = self.response['authToken']
-            self.user_id = self.response['userId']
-            self.add_to_course_group(self.course, self.user_id)
-            if self.role == "instructor":
-                self.change_role(self.user_id)
-        else:
-            self.response = response['errorType']
-        html = self.resource_string("static/html/rocketc.html")
-        frag = Fragment(html.format(self=self))
+        when viewing courses.
+        """
+
+        in_studio_runtime = hasattr(self.xmodule_runtime, 'is_author_mode')
+
+
+        if in_studio_runtime:
+            return self.author_view(context)
+        
+        context["response"] = self.init() 
+        context["user_data"] = self.user_data
+        context["admin_data"] = self.admin_data
+
+        frag = Fragment(LOADER.render_template('static/html/rocketc.html', context))
         frag.add_css(self.resource_string("static/css/rocketc.css"))
         frag.add_javascript(self.resource_string("static/js/src/rocketc.js"))
         frag.initialize_js('RocketChatXBlock')
+        return frag
+
+    def author_view(self, context=None):
+        """  Returns author view fragment on Studio """
+
+        frag = Fragment(u"Studio Runtime RocketChatXBlock")
+        frag.add_css(self.resource_string("static/css/rocketc.css"))
+        frag.add_javascript(self.resource_string("static/js/src/rocketc.js"))
+        frag.initialize_js('RocketChatXBlock')
+
         return frag
 
     # TO-DO: change this handler to perform your own actions.  You may need more
@@ -89,19 +101,40 @@ class RocketChatXBlock(XBlock):
         ]
 #/////////////////////////////////////////////////////////////////////////
 
-    def get_and_set_user(self):
+    def init(self):
+        """
+        This method initializes the user's variables and
+        log in to rocketchat account
+        """
+        self.get_admin_data()
+        self.get_user_data()
+
+        response = self.login(self.user_data)
+        if response['success']:
+            response = response['data']            
+            self.add_to_course_group(self.user_data["course"], response['userId'])
+            if self.user_data["role"] == "instructor" and self.rocket_chat_role=="user":
+                self.change_role(response['userId'], "bot")
+            return response
+        else:
+            return response['errorType']
+
+    def get_user_data(self):
         """
         This method initializes the user's parameters
         """
         runtime = self.xmodule_runtime
-        self.role = runtime.get_user_role()
-        self.anonymous_student_id = runtime.anonymous_student_id
         user = runtime.service(self, 'user').get_current_user()
-        self.email = user.emails[0]
-        self.username = user.opt_attrs['edx-platform.username']
-        self.course = runtime.course_id.course
+        user_data = {}
+        user_data["email"] = user.emails[0]
+        user_data["role"] = runtime.get_user_role()
+        user_data["course"] = runtime.course_id.course
+        user_data["username"] = user.opt_attrs['edx-platform.username']
+        user_data["anonymous_student_id"] = runtime.anonymous_student_id 
+        self.user_data = user_data
+        
 
-    def get_admin_token_and_id(self):
+    def get_admin_data(self):
         """
         This method initializes admin's authToken and userId
         """
@@ -109,8 +142,9 @@ class RocketChatXBlock(XBlock):
         data = {"user": "andrey92", "password": "edunext"}
         headers = {"Content-type": "application/json"}
         response = requests.post(url=url, json=data, headers=headers)
-        self.admin_auth_token = response.json()["data"]["authToken"]
-        self.admin_user_id = response.json()["data"]["userId"]
+        self.admin_data = {}
+        self.admin_data["auth_token"] = response.json()["data"]["authToken"]
+        self.admin_data["user_id"] = response.json()["data"]["userId"]
 
     def search_rocket_chat_user(self, username):
         """
@@ -120,20 +154,20 @@ class RocketChatXBlock(XBlock):
 
         return self.request_rocket_chat("get", url_path)
 
-    def login(self, username):
+    def login(self, user_data):
         """
         This method allows to get the user's authToken and id 
         or creates a user to login in RocketChat
         """
-        rocket_chat_user = self.search_rocket_chat_user(username)
+        rocket_chat_user = self.search_rocket_chat_user(user_data["username"])
 
         if rocket_chat_user['success']:
-            data = self.create_token(username)
+            data = self.create_token(user_data["username"])
 
         else:
-            self.create_user(self.anonymous_student_id,
-                             self.email, self.username)
-            data = self.create_token(username)
+            self.create_user(user_data["anonymous_student_id"],
+                             user_data["email"], user_data["username"])
+            data = self.create_token(user_data["username"])
 
         return data
 
@@ -145,13 +179,15 @@ class RocketChatXBlock(XBlock):
         data = {'username': username}
         return self.request_rocket_chat("post", url_path, data)
 
-    def change_role(self, user_id):
+    def change_role(self, user_id, role):
         """
         This method allows to change the user's role
         """
-        data = {"userId": user_id, "data": {"roles": ["bot"]}}
-        self.change = self.request_rocket_chat(
-            "post", "users.update", data)['success']
+        data = {"userId": user_id, "data": {"roles": [role]}}
+        response = self.request_rocket_chat(
+            "post", "users.update", data)
+        if response["success"]:
+            self.rocket_chat_role = role
 
     def create_user(self, name, email, username):
         """
@@ -221,8 +257,8 @@ class RocketChatXBlock(XBlock):
         """
         This method generates a call to the RocketChat API and returns a json with the response
         """
-        headers = {"X-Auth-Token": self.admin_auth_token,
-                   "X-User-Id": self.admin_user_id, "Content-type": "application/json"}
+        headers = {"X-Auth-Token": self.admin_data["auth_token"],
+                   "X-User-Id": self.admin_data["user_id"], "Content-type": "application/json"}
         url = "{}/{}".format(self.url_prefix, url_path)
         if method == "post":
             response = requests.post(url=url, json=data, headers=headers)
