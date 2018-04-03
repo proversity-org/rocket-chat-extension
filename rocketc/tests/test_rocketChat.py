@@ -6,8 +6,10 @@ class TestRocketChat(unittest.TestCase):
     """ Unit tests for RocketChat Xblock"""
     def setUp(self):
         """"""
-        self.admin_data["auth_token"] = ""
-        self.admin_data["user_id"] = ""
+        admin_data = {}
+        admin_data["auth_token"] = ""
+        admin_data["user_id"] = ""
+        RocketChatXBlock.admin_data = admin_data
 
 
     def test_request_rocket_chat(self):
