@@ -1,0 +1,12 @@
+<div class="rocketc_block">
+    <center>
+        <p>Role = {self.role} </p>
+        <p>authToken = {self.admin_auth_token} </p>
+        <p>UserId = {self.admin_user_id} </p>
+        <p>Change Succes  = {self.change} </p>
+        <p>{self.response}</p>
+        <!-- <p>Group {self.group}</p> -->
+        
+        <iframe  height="500" width="600" name="myiframe" id="myiframe" src="http://localhost:3000/home?authToken={self.auth_token}&userId={self.user_id}" >IFrame is not supported</iframe>
+    </center>
+</div>
