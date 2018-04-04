@@ -1,5 +1,6 @@
-"""TO-DO: Write a description of what this XBlock is."""
-import json
+"""
+TO-DO: Write a description of what this XBlock is.
+"""
 import hashlib
 import pkg_resources
 import requests
@@ -11,7 +12,7 @@ from xblockutils.resources import ResourceLoader
 
 LOADER = ResourceLoader(__name__)
 
-@XBlock.wants("user")
+@XBlock.wants("user") # pylint: disable=too-many-ancestors
 class RocketChatXBlock(XBlock):
     """
     TO-DO: document what your XBlock does.
@@ -27,13 +28,14 @@ class RocketChatXBlock(XBlock):
     rocket_chat_role = String(
         default="user", scope=Scope.user_state,
         help="The defined role in rocketChat"
-        )
+    )
 
     url_prefix = "http://192.168.0.16:3000/api/v1"
     salt = "HarryPotter_y_elPrisonero_deAzkaban"
 
     def resource_string(self, path):
         """Handy helper for getting resources from our kit."""
+        # pylint: disable=no-self-use
         data = pkg_resources.resource_string(__name__, path)
         return data.decode("utf8")
 
@@ -43,17 +45,18 @@ class RocketChatXBlock(XBlock):
         when viewing courses.
         """
 
-        in_studio_runtime = hasattr(self.xmodule_runtime, 'is_author_mode')
-
+        in_studio_runtime = hasattr(
+            self.xmodule_runtime, 'is_author_mode')  # pylint: disable=no-member
 
         if in_studio_runtime:
             return self.author_view(context)
-        
-        context["response"] = self.init() 
+
+        context["response"] = self.init()
         context["user_data"] = self.user_data
         context["admin_data"] = self.admin_data
 
-        frag = Fragment(LOADER.render_template('static/html/rocketc.html', context))
+        frag = Fragment(LOADER.render_template(
+            'static/html/rocketc.html', context))
         frag.add_css(self.resource_string("static/css/rocketc.css"))
         frag.add_javascript(self.resource_string("static/js/src/rocketc.js"))
         frag.initialize_js('RocketChatXBlock')
@@ -61,26 +64,13 @@ class RocketChatXBlock(XBlock):
 
     def author_view(self, context=None):
         """  Returns author view fragment on Studio """
-
+        # pylint: disable=unused-argument
         frag = Fragment(u"Studio Runtime RocketChatXBlock")
         frag.add_css(self.resource_string("static/css/rocketc.css"))
         frag.add_javascript(self.resource_string("static/js/src/rocketc.js"))
         frag.initialize_js('RocketChatXBlock')
 
         return frag
-
-    # TO-DO: change this handler to perform your own actions.  You may need more
-    # than one handler, or you may not need any handlers at all.
-    @XBlock.json_handler
-    def increment_count(self, data, suffix=''):
-        """
-        An example handler, which increments the data.
-        """
-        # Just to show data coming in...
-        assert data['hello'] == 'world'
-
-        self.count += 1
-        return {"count": self.count}
 
     # TO-DO: change this to create the scenarios you'd like to see in the
     # workbench while developing your XBlock.
@@ -99,7 +89,6 @@ class RocketChatXBlock(XBlock):
                 </vertical_demo>
              """),
         ]
-#/////////////////////////////////////////////////////////////////////////
 
     def init(self):
         """
@@ -111,9 +100,10 @@ class RocketChatXBlock(XBlock):
 
         response = self.login(self.user_data)
         if response['success']:
-            response = response['data']            
-            self.add_to_course_group(self.user_data["course"], response['userId'])
-            if self.user_data["role"] == "instructor" and self.rocket_chat_role=="user":
+            response = response['data']
+            self.add_to_course_group(
+                self.user_data["course"], response['userId'])
+            if self.user_data["role"] == "instructor" and self.rocket_chat_role == "user":
                 self.change_role(response['userId'], "bot")
             return response
         else:
@@ -123,16 +113,15 @@ class RocketChatXBlock(XBlock):
         """
         This method initializes the user's parameters
         """
-        runtime = self.xmodule_runtime
+        runtime = self.xmodule_runtime # pylint: disable=no-member
         user = runtime.service(self, 'user').get_current_user()
         user_data = {}
         user_data["email"] = user.emails[0]
         user_data["role"] = runtime.get_user_role()
         user_data["course"] = runtime.course_id.course
         user_data["username"] = user.opt_attrs['edx-platform.username']
-        user_data["anonymous_student_id"] = runtime.anonymous_student_id 
-        self.user_data = user_data
-        
+        user_data["anonymous_student_id"] = runtime.anonymous_student_id
+        self.user_data = user_data # pylint: disable=attribute-defined-outside-init
 
     def get_admin_data(self):
         """
@@ -142,7 +131,7 @@ class RocketChatXBlock(XBlock):
         data = {"user": "andrey92", "password": "edunext"}
         headers = {"Content-type": "application/json"}
         response = requests.post(url=url, json=data, headers=headers)
-        self.admin_data = {}
+        self.admin_data = {} # pylint: disable=attribute-defined-outside-init
         self.admin_data["auth_token"] = response.json()["data"]["authToken"]
         self.admin_data["user_id"] = response.json()["data"]["userId"]
 
@@ -156,7 +145,7 @@ class RocketChatXBlock(XBlock):
 
     def login(self, user_data):
         """
-        This method allows to get the user's authToken and id 
+        This method allows to get the user's authToken and id
         or creates a user to login in RocketChat
         """
         rocket_chat_user = self.search_rocket_chat_user(user_data["username"])
@@ -212,7 +201,7 @@ class RocketChatXBlock(XBlock):
             rocket_chat_group = self.create_group(group_name)
             self.add_to_group(user_id, rocket_chat_group['group']['_id'])
 
-        self.group = self.search_rocket_chat_group(group_name)
+        self.group = self.search_rocket_chat_group(group_name) # pylint: disable=attribute-defined-outside-init
 
     def search_rocket_chat_group(self, room_name):
         """
@@ -236,22 +225,6 @@ class RocketChatXBlock(XBlock):
         url_path = "groups.create"
         data = {"name": name}
         self.request_rocket_chat("post", url_path, data)
-
-    def add_to_channel(self, room_name, username):
-        """
-        -----
-        """
-        room_id = self.get_room_id(room_name)
-        user_id = self.get_user_id(username)
-        data = {"roomId": room_id, "userId": user_id}
-        self.request_rocket_chat("post", "channels.invite", data)
-
-    def get_room_id(self, room_name):
-        """
-        -------
-        """
-        url_path = "{}?{}".format("channels.info", room_name)
-        return self.request_rocket_chat("get", url_path)["channel"]["_id"]
 
     def request_rocket_chat(self, method, url_path, data=None):
         """

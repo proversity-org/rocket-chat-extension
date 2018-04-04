@@ -38,6 +38,6 @@ Mailing List and Slack
 .. |build-status| image:: https://circleci.com/gh/eduNEXT/rocket-chat-extension.svg?style=svg
    :target: https://circleci.com/gh/eduNEXT/rocket-chat-extension
    :alt: CircleCI build status
-.. |coverage-status| image:: https://coveralls.io/repos/edx/edx-ora2/badge.png?branch=master
-   :target: https://coveralls.io/r/edx/edx-ora2?branch=master
+.. |coverage-status| image:: https://codecov.io/gh/codecov/example-python/branch/master/graph/badge.svg
+   :target: https://codecov.io/gh/eduNEXT/rocket-chat-extension
    :alt: Coverage badge

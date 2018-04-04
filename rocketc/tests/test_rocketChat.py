@@ -1,28 +1,43 @@
 import unittest
-from mock import patch
+from mock import MagicMock, patch
 from rocketc.rocketc import RocketChatXBlock
 
 class TestRocketChat(unittest.TestCase):
     """ Unit tests for RocketChat Xblock"""
+
     def setUp(self):
         """"""
-        admin_data = {}
-        admin_data["auth_token"] = ""
-        admin_data["user_id"] = ""
-        RocketChatXBlock.admin_data = admin_data
-
+        self.runtime_mock = MagicMock()
+        scope_ids_mock = MagicMock()
+        scope_ids_mock.usage_id = u'0'
+        self.block = RocketChatXBlock(
+            self.runtime_mock, scope_ids=scope_ids_mock)
+        self.block.admin_data = MagicMock()
 
     def test_request_rocket_chat(self):
         """"""
         users = [{
-            "id": 0,
-            "first_name": "Dell",
-            "last_name": "Norval",
-            "phone": "994-979-3976"
+            "user": {
+                "_id": "BsNr28znDkG8aeo7W",
+                "createdAt": "2016-09-13T14:57:56.037Z",
+                },
+            "success": "true",
         }]
 
-        with patch('rocketc.requests.post') as mock_post:
-            mock_post.return_value.json.return_value = users
-            data = RocketChatXBlock.request_rocket_chat("post", "users.create")
+        info = [{
+            "success": "true",
+            "info":{
+                "version": "0.47.0-develop"
+            }
+        }]
 
-        self.assertEqual(data, users)
+        with patch('rocketc.rocketc.requests.post') as mock_post:
+            mock_post.return_value.json.return_value = users
+            data_post = self.block.request_rocket_chat("post", "users.create")
+
+        with patch('rocketc.rocketc.requests.get') as mock_get:
+            mock_get.return_value.json.return_value = info
+            data_get = self.block.request_rocket_chat("get", "info")
+
+        self.assertEqual(data_post, users)
+        self.assertEqual(data_get, info)
