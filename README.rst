@@ -77,9 +77,8 @@ Features include
 About this xblock
 -----------------
 
-The Flow control Xblock was built by `eduNEXT <https://www.edunext.co>`_, a company specialized in open edX development and open edX cloud services.
+The RocketChat Xblock was built by `eduNEXT <https://www.edunext.co>`_, a company specialized in open edX development and open edX cloud services.
 
-It was presented at the open edX con 2016 at Stanford University.
 
 
 How to contribute

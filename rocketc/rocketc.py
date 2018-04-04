@@ -15,12 +15,9 @@ LOADER = ResourceLoader(__name__)
 @XBlock.wants("user") # pylint: disable=too-many-ancestors
 class RocketChatXBlock(XBlock):
     """
-    TO-DO: document what your XBlock does.
+    This class allows to embed a chat window inside a unit course
+    and set the necessary variables to config the rocketChat enviroment
     """
-
-    # Fields are defined on the class.  You can access them in your code as
-    # self.<fieldname>.
-
     count = Integer(
         default=0, scope=Scope.user_state,
         help="A simple counter, to show something happening",
