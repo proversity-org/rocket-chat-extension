@@ -1,5 +1,6 @@
 # Requirements for testing
 -r base.txt
+codecov==1.4.0
 coverage==4.0.2
 pep8==1.7.0
 pylint==1.8

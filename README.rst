@@ -1,4 +1,4 @@
-Xblock RocketChat |build-status| |coverage-status|
+Xblock RocketChat |build-status| |coverage-status| |codacy-status|
 =========================================================
 
 RocketChat Xblock allows to implement a chat window inside a course.
@@ -95,3 +95,6 @@ How to contribute
 .. |coverage-status| image:: https://codecov.io/gh/codecov/example-python/branch/master/graph/badge.svg
    :target: https://codecov.io/gh/eduNEXT/rocket-chat-extension
    :alt: Coverage badge
+.. |codacy-status| image:: https://api.codacy.com/project/badge/Grade/31f24686b01944ac835ef835a6ce32bb
+   :target: https://www.codacy.com/app/andrey-canon/rocket-chat-extension
+   :alt: Codacy badge

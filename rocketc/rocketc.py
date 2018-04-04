@@ -11,6 +11,7 @@ from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 
 LOADER = ResourceLoader(__name__)
+URL_PREFIX = "http://192.168.0.16:3000/api/v1"
 
 @XBlock.wants("user") # pylint: disable=too-many-ancestors
 class RocketChatXBlock(XBlock):
@@ -27,7 +28,6 @@ class RocketChatXBlock(XBlock):
         help="The defined role in rocketChat"
     )
 
-    url_prefix = "http://192.168.0.16:3000/api/v1"
     salt = "HarryPotter_y_elPrisonero_deAzkaban"
 
     def resource_string(self, path):
@@ -124,7 +124,7 @@ class RocketChatXBlock(XBlock):
         """
         This method initializes admin's authToken and userId
         """
-        url = "{}/{}".format(self.url_prefix, "login")
+        url = "{}/{}".format(URL_PREFIX, "login")
         data = {"user": "andrey92", "password": "edunext"}
         headers = {"Content-type": "application/json"}
         response = requests.post(url=url, json=data, headers=headers)
@@ -229,7 +229,7 @@ class RocketChatXBlock(XBlock):
         """
         headers = {"X-Auth-Token": self.admin_data["auth_token"],
                    "X-User-Id": self.admin_data["user_id"], "Content-type": "application/json"}
-        url = "{}/{}".format(self.url_prefix, url_path)
+        url = "{}/{}".format(URL_PREFIX, url_path)
         if method == "post":
             response = requests.post(url=url, json=data, headers=headers)
         else:
