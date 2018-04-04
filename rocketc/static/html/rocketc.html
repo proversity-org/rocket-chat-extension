@@ -1,0 +1,16 @@
+<div class="rocketc_block">
+    <center> 
+
+        {% if user_data.role == "instructor"%}
+        <p>Role = {{user_data.role}} </p>
+        <p>{{response}}</p>
+        {% endif %}
+
+        {% if "authToken" in response%}
+        <iframe  height="500" width="600" name="myiframe" id="myiframe" src="http://localhost:3000/home?authToken={{response.authToken}}&userId={{response.userId}}" >IFrame is not supported</iframe>
+        {% else %}
+        {{response}}
+        {% endif %}        
+        
+    </center>
+</div>
