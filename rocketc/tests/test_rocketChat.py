@@ -2,6 +2,7 @@ import unittest
 from mock import MagicMock, patch
 from rocketc.rocketc import RocketChatXBlock
 
+
 class TestRocketChat(unittest.TestCase):
     """ Unit tests for RocketChat Xblock"""
 
@@ -13,7 +14,7 @@ class TestRocketChat(unittest.TestCase):
         self.block = RocketChatXBlock(
             self.runtime_mock, scope_ids=scope_ids_mock)
         self.block.admin_data = MagicMock()
-        self.block.user_data = MagicMock()
+        self.block.user_data= MagicMock({"username":"test_user_name"})
 
     def test_request_rocket_chat(self):
         """"""
@@ -21,13 +22,13 @@ class TestRocketChat(unittest.TestCase):
             "user": {
                 "_id": "BsNr28znDkG8aeo7W",
                 "createdAt": "2016-09-13T14:57:56.037Z",
-                },
+            },
             "success": "true",
         }]
 
         info = [{
             "success": "true",
-            "info":{
+            "info": {
                 "version": "0.47.0-develop"
             }
         }]
@@ -43,12 +44,21 @@ class TestRocketChat(unittest.TestCase):
         self.assertEqual(data_post, users)
         self.assertEqual(data_get, info)
 
-    @patch('rocketc.rocketc.RocketChatXBlock.create_token') # Mock create token method
+    # Mock create token method
+    @patch('rocketc.rocketc.RocketChatXBlock.create_token')
     def test_login(self, mock_token):
         """"""
         mock_token.return_value = {'success': True}
         success = {'success': True}
-        with patch('rocketc.rocketc.RocketChatXBlock.search_rocket_chat_user') as mock_search:
-            mock_search.return_value = success
-            data = self.block.login(self.block.user_data)
-        self.assertTrue(data['success'])
+        with patch('rocketc.rocketc.RocketChatXBlock.search_rocket_chat_user', return_value=success):
+            result_if = self.block.login(self.block.user_data)
+            mock_token.assert_called_with(self.block.user_data['username'])
+
+        success['success'] = False
+        with patch('rocketc.rocketc.RocketChatXBlock.search_rocket_chat_user', return_value=success):
+            with patch('rocketc.rocketc.RocketChatXBlock.create_user'):
+                result_else= self.block.login(self.block.user_data)
+                mock_token.assert_called_with(self.block.user_data['username'])
+
+        self.assertTrue(result_if['success'])
+        self.assertTrue(result_else['success'])
