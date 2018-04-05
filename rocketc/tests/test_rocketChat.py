@@ -13,6 +13,7 @@ class TestRocketChat(unittest.TestCase):
         self.block = RocketChatXBlock(
             self.runtime_mock, scope_ids=scope_ids_mock)
         self.block.admin_data = MagicMock()
+        self.block.user_data = MagicMock()
 
     def test_request_rocket_chat(self):
         """"""
@@ -41,3 +42,13 @@ class TestRocketChat(unittest.TestCase):
 
         self.assertEqual(data_post, users)
         self.assertEqual(data_get, info)
+
+    @patch('rocketc.rocketc.create_token') # Mock create token method
+    def test_login(self, mock_token):
+        """"""
+        mock_token.return_value = {'success': True}
+        success = {'success': True}
+        with patch('rocketc.rocketc.search_rocket_chat_user') as mock_search:
+            mock_search.return_value = success
+            data = self.block.login(self.block.user_data)
+        self.assertTrue(data['success'])
