@@ -96,8 +96,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         This method initializes the user's variables and
         log in to rocketchat account
         """
-        self.url_api_rocket_chat = self.get_url_api_rocket_chat(
-        )  # pylint: disable=attribute-defined-outside-init
+        self.url_api_rocket_chat = self.get_url_api_rocket_chat()  # pylint: disable=attribute-defined-outside-init
         self.get_admin_data()
         self.get_user_data()
 
@@ -119,8 +118,8 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         settings = self.get_xblock_settings()
         if "url_service" in settings:
             return "{}/{}/{}".format(settings["url_service"], "api", "v1")
-        else:
-            return "{}/{}/{}".format("http://localhost:3000", "api", "v1")
+
+        return "{}/{}/{}".format("http://localhost:3000", "api", "v1")
 
     def get_user_data(self):
         """
@@ -215,8 +214,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
             rocket_chat_group = self.create_group(group_name)
             self.add_to_group(user_id, rocket_chat_group['group']['_id'])
 
-        self.group = self.search_rocket_chat_group(
-            group_name)  # pylint: disable=attribute-defined-outside-init
+        self.group = self.search_rocket_chat_group(group_name)  # pylint: disable=attribute-defined-outside-init
 
     def search_rocket_chat_group(self, room_name):
         """

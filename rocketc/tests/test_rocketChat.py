@@ -22,6 +22,7 @@ class TestRocketChat(unittest.TestCase):
             self.runtime_mock, scope_ids=scope_ids_mock)
         self.block.admin_data = MagicMock()
         self.block.user_data = MagicMock(test_data)
+        self.block.url_api_rocket_chat = MagicMock ()
 
     def test_request_rocket_chat(self):
         """Test for the request rocket chat method """
