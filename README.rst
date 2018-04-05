@@ -92,7 +92,7 @@ How to contribute
 .. |build-status| image:: https://circleci.com/gh/eduNEXT/rocket-chat-extension.svg?style=svg
    :target: https://circleci.com/gh/eduNEXT/rocket-chat-extension
    :alt: CircleCI build status
-.. |coverage-status| image:: https://codecov.io/gh/codecov/example-python/branch/master/graph/badge.svg
+.. |coverage-status| image::  https://codecov.io/gh/eduNEXT/rocket-chat-extension/branch/master/graph/badge.svg
    :target: https://codecov.io/gh/eduNEXT/rocket-chat-extension
    :alt: Coverage badge
 .. |codacy-status| image:: https://api.codacy.com/project/badge/Grade/31f24686b01944ac835ef835a6ce32bb
