@@ -5,6 +5,7 @@ RocketChat Xblock allows to implement a chat window inside a course.
 
 Installation
 ------------
+Add the content of login_script.js to custom scripts in rocketChat user's  interface
 
 Install the requirements into the Python virtual environment of your `edx-platform` installation by running the following command from the root folder:
 
