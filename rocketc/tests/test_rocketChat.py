@@ -172,3 +172,21 @@ class TestRocketChat(unittest.TestCase):
             with patch('rocketc.rocketc.RocketChatXBlock.create_group', return_value=data):
                 self.block.add_to_course_group(group_name, user_id)
                 mock_add_to_group.assert_called_with(user_id, data['group']['_id'])
+
+    @patch('rocketc.rocketc.RocketChatXBlock.request_rocket_chat')
+    def test_add_to_group(self, mock_request):
+        """"""
+        method = "post"
+        success = {'success': True}
+
+        user_id = "test_user_id"
+        room_id = "test_room_id"
+
+        mock_request.return_value = success
+        url_path = "groups.invite"
+
+        data = {"roomId": room_id, "userId": user_id}
+
+        response = self.block.add_to_group(user_id, room_id)
+        mock_request.assert_called_with(method, url_path, data)
+        self.assertTrue(response['success'])
