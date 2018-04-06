@@ -121,3 +121,37 @@ class TestRocketChat(unittest.TestCase):
 
         mock_request.assert_called_with(method, url_path, data)
         self.assertTrue(response['success'])
+
+    @patch('rocketc.rocketc.RocketChatXBlock.request_rocket_chat')
+    def test_create_token(self, mock_request):
+        """"""
+        method = "post"
+        success = {'success': True}
+
+        username = self.block.user_data['username']
+
+        mock_request.return_value = success
+        url_path = "users.createToken"
+
+        data = {'username': username}
+
+        response = self.block.create_token(username)
+
+        mock_request.assert_called_with(method, url_path, data)
+        self.assertTrue(response['success'])
+
+    @patch('rocketc.rocketc.RocketChatXBlock.request_rocket_chat')
+    def test_create_group(self, mock_request):
+        """"""
+        method = "post"
+        success = {'success': True}
+
+        name = self.block.user_data['course']
+
+        mock_request.return_value = success
+        url_path = "groups.create"
+
+        data = {'name': name}
+
+        self.block.create_group(name)
+        mock_request.assert_called_with(method, url_path, data)
