@@ -155,3 +155,20 @@ class TestRocketChat(unittest.TestCase):
 
         self.block.create_group(name)
         mock_request.assert_called_with(method, url_path, data)
+
+    # Mock create token method
+    @patch('rocketc.rocketc.RocketChatXBlock.add_to_group')
+    def test_add_to_course_group(self, mock_add_to_group):
+        """"""
+        group_name = "test_group"
+        user_id = "test_user_id"
+        data = {'success': True, 'group': {'_id': "test_group_id"}}
+        with patch('rocketc.rocketc.RocketChatXBlock.search_rocket_chat_group', return_value=data):
+            self.block.add_to_course_group(group_name, user_id)
+            mock_add_to_group.assert_called_with(user_id, data['group']['_id'])
+
+        data['success'] = False
+        with patch('rocketc.rocketc.RocketChatXBlock.search_rocket_chat_group', return_value=data):
+            with patch('rocketc.rocketc.RocketChatXBlock.create_group', return_value=data):
+                self.block.add_to_course_group(group_name, user_id)
+                mock_add_to_group.assert_called_with(user_id, data['group']['_id'])
