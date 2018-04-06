@@ -190,3 +190,20 @@ class TestRocketChat(unittest.TestCase):
         response = self.block.add_to_group(user_id, room_id)
         mock_request.assert_called_with(method, url_path, data)
         self.assertTrue(response['success'])
+
+    @patch('rocketc.rocketc.RocketChatXBlock.request_rocket_chat')
+    def test_change_role(self, mock_request):
+        """"""
+        method = "post"
+        success = {'success': True}
+
+        user_id = "test_user_id"
+        role = "test_role"
+
+        mock_request.return_value = success
+        url_path = "users.update"
+
+        data = {"userId": user_id, "data": {"roles": [role]}}
+
+        self.block.change_role(user_id, role)
+        mock_request.assert_called_with(method, url_path, data)
