@@ -1,4 +1,5 @@
 import unittest
+import hashlib
 from mock import MagicMock, patch
 from rocketc.rocketc import RocketChatXBlock
 
@@ -8,13 +9,19 @@ class TestRocketChat(unittest.TestCase):
 
     def setUp(self):
         """"""
+        test_data = {"username": "test_user_name",
+                "anonymous_student_id": "test_anonymous_student_id",
+                "email": "test_email",
+                "course": "test_course",
+                "role": "test_role"
+                }
         self.runtime_mock = MagicMock()
         scope_ids_mock = MagicMock()
         scope_ids_mock.usage_id = u'0'
         self.block = RocketChatXBlock(
             self.runtime_mock, scope_ids=scope_ids_mock)
         self.block.admin_data = MagicMock()
-        self.block.user_data = MagicMock({"username": "test_user_name"})
+        self.block.user_data = MagicMock(test_data)
 
     def test_request_rocket_chat(self):
         """"""
@@ -89,4 +96,28 @@ class TestRocketChat(unittest.TestCase):
         response = self.block.search_rocket_chat_group(room_name)
 
         mock_request.assert_called_with(method, url_path)
+        self.assertTrue(response['success'])
+
+    @patch('rocketc.rocketc.RocketChatXBlock.request_rocket_chat')
+    def test_create_user(self, mock_request):
+        """"""
+        method = "post"
+        success = {'success': True}
+
+        email = self.block.user_data['email']
+        username = self.block.user_data['username']
+        name = self.block.user_data['anonymous_student_id']
+        salt = "HarryPotter_y_elPrisonero_deAzkaban"
+
+        mock_request.return_value = success
+        url_path = "users.create"
+
+        password = "{}{}".format(name, salt)
+        password = hashlib.sha1(password).hexdigest()
+        data = {"name": name, "email": email,
+                "password": password, "username": username}
+
+        response = self.block.create_user(name, email, username)
+
+        mock_request.assert_called_with(method, url_path, data)
         self.assertTrue(response['success'])
