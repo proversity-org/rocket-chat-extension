@@ -68,12 +68,25 @@ class TestRocketChat(unittest.TestCase):
         """"""
         method = "get"
         success = {'success': True}
+        username = self.block.user_data['username']
         mock_request.return_value = success
-        url_path = "{}?{}={}".format(
-            "users.info", "username", self.block.user_data['username'])
+        url_path = "{}?{}={}".format("users.info", "username", username)
 
-        response = self.block.search_rocket_chat_user(
-            self.block.user_data['username'])
+        response = self.block.search_rocket_chat_user(username)
+
+        mock_request.assert_called_with(method, url_path)
+        self.assertTrue(response['success'])
+
+    @patch('rocketc.rocketc.RocketChatXBlock.request_rocket_chat')
+    def test_search_rocket_chat_group(self, mock_request):
+        """"""
+        method = "get"
+        success = {'success': True}
+        room_name = "test_room_name"
+        mock_request.return_value = success
+        url_path = "{}?{}={}".format("groups.info", "roomName", room_name)
+
+        response = self.block.search_rocket_chat_group(room_name)
 
         mock_request.assert_called_with(method, url_path)
         self.assertTrue(response['success'])
