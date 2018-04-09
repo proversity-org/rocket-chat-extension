@@ -5,6 +5,10 @@ import hashlib
 import pkg_resources
 import requests
 
+from django.conf import settings
+from django.contrib.auth.models import User
+from openedx.core.djangoapps.user_api.accounts.image_helpers import get_profile_image_urls_for_user
+
 from xblock.core import XBlock
 from xblock.fields import Integer, Scope, String
 from xblock.fragment import Fragment
@@ -51,6 +55,8 @@ class RocketChatXBlock(XBlock):
         context["response"] = self.init()
         context["user_data"] = self.user_data
         context["admin_data"] = self.admin_data
+
+        url = self._user_image_url()
 
         frag = Fragment(LOADER.render_template(
             'static/html/rocketc.html', context))
@@ -235,3 +241,11 @@ class RocketChatXBlock(XBlock):
         else:
             response = requests.get(url=url, headers=headers)
         return response.json()
+
+    def _user_image_url(self):
+        """Returns an image urlfor the current user"""
+        current_user = User.objects.get(username=self.user_data["username"])
+        base_url = settings.LMS_ROOT_URL
+        profile_image_url = get_profile_image_urls_for_user(current_user)["full"]
+        image_url = "{}{}".format(base_url, profile_image_url)
+        return image_url
