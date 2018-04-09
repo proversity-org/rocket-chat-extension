@@ -117,9 +117,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         """
         settings = self.get_xblock_settings()
         if "url_service" in settings:
-            return "{}/{}/{}".format(settings["url_service"], "api", "v1")
+            return "/".join([settings["url_service"], "api", "v1"])
 
-        return "{}/{}/{}".format("http://localhost:3000", "api", "v1")
+        return "/".join(["http://localhost:3000", "api", "v1"])
 
     def get_user_data(self):
         """
