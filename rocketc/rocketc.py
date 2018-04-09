@@ -190,7 +190,9 @@ class RocketChatXBlock(XBlock):
         password = hashlib.sha1(password).hexdigest()
         data = {"name": name, "email": email,
                 "password": password, "username": username}
-        return self.request_rocket_chat("post", "users.create", data)
+        response = self.request_rocket_chat("post", "users.create", data)
+        self._set_avatar(username)
+        return response
 
     def add_to_course_group(self, group_name, user_id):
         """
@@ -243,9 +245,15 @@ class RocketChatXBlock(XBlock):
         return response.json()
 
     def _user_image_url(self):
-        """Returns an image urlfor the current user"""
+        """Returns an image url for the current user"""
         current_user = User.objects.get(username=self.user_data["username"])
         base_url = settings.LMS_ROOT_URL
         profile_image_url = get_profile_image_urls_for_user(current_user)["full"]
         image_url = "{}{}".format(base_url, profile_image_url)
         return image_url
+
+    def _set_avatar(self, username):
+        image_url = self._user_image_url()
+        url_path = "users.setAvatar"
+        data = {"username": username, "avatarUrl": image_url}
+        self.request_rocket_chat("post", url_path, data)
