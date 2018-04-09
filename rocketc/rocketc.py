@@ -161,6 +161,7 @@ class RocketChatXBlock(XBlock):
                              user_data["email"], user_data["username"])
             data = self.create_token(user_data["username"])
 
+        self._set_avatar(user_data["username"])
         return data
 
     def create_token(self, username):
@@ -190,9 +191,7 @@ class RocketChatXBlock(XBlock):
         password = hashlib.sha1(password).hexdigest()
         data = {"name": name, "email": email,
                 "password": password, "username": username}
-        response = self.request_rocket_chat("post", "users.create", data)
-        self._set_avatar(username)
-        return response
+        return self.request_rocket_chat("post", "users.create", data)
 
     def add_to_course_group(self, group_name, user_id):
         """
