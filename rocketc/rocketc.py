@@ -3,7 +3,6 @@ TO-DO: Write a description of what this XBlock is.
 """
 import hashlib
 import re
-import logging
 import pkg_resources
 import requests
 
@@ -16,6 +15,8 @@ from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.settings import XBlockWithSettingsMixin
 from xblockutils.studio_editable import StudioEditableXBlockMixin
+
+from xmodule.modulestore.django import modulestore
 
 LOADER = ResourceLoader(__name__)
 LOG = logging.getLogger(__name__)
@@ -173,7 +174,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         """
         runtime = self.xmodule_runtime  # pylint: disable=no-member
         user = runtime.service(self, 'user').get_current_user()
+        settings_service = self.runtime.service(self, "settings")
         user_data = {}
+        user_data["p"] = self.teams_is_enabled(runtime.course_id)
         user_data["email"] = user.emails[0]
         user_data["role"] = runtime.get_user_role()
         user_data["course"] = re.sub('[^A-Za-z0-9]+', '', runtime.course_id._to_string()) # pylint: disable=protected-access
@@ -468,3 +471,10 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         response = self._request_rocket_chat(method, url_path, data)
 
         LOG.info("Method Set Topic: %s with this data: %s", response, data)
+
+    def teams_is_enabled(self, course_id):
+        course = modulestore().get_course(course_id, depth=0)
+        teams_configuration = course.teams_configuration
+        if len(teams_configuration["topics"]):
+            return True
+        return False
