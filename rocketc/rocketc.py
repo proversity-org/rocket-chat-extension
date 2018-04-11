@@ -5,13 +5,16 @@ import hashlib
 import pkg_resources
 import requests
 
+from django.conf import settings
+from django.contrib.auth.models import User
+
 from xblock.core import XBlock
 from xblock.fields import Integer, Scope, String
 from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 
 LOADER = ResourceLoader(__name__)
-URL_PREFIX = "http://192.168.0.16:3000/api/v1"
+URL_PREFIX = "http://192.168.0.77:3000/api/v1"
 
 @XBlock.wants("user") # pylint: disable=too-many-ancestors
 class RocketChatXBlock(XBlock):
@@ -155,6 +158,7 @@ class RocketChatXBlock(XBlock):
                              user_data["email"], user_data["username"])
             data = self.create_token(user_data["username"])
 
+        self._set_avatar(user_data["username"])
         return data
 
     def create_token(self, username):
@@ -235,3 +239,18 @@ class RocketChatXBlock(XBlock):
         else:
             response = requests.get(url=url, headers=headers)
         return response.json()
+
+    def _user_image_url(self):
+        """Returns an image url for the current user"""
+        from openedx_dependencies import get_profile_image_urls_for_user # pylint: disable=relative-import
+        current_user = User.objects.get(username=self.user_data["username"])
+        base_url = settings.LMS_ROOT_URL
+        profile_image_url = get_profile_image_urls_for_user(current_user)["full"]
+        image_url = "{}{}".format(base_url, profile_image_url)
+        return image_url
+
+    def _set_avatar(self, username):
+        image_url = self._user_image_url()
+        url_path = "users.setAvatar"
+        data = {"username": username, "avatarUrl": image_url}
+        self.request_rocket_chat("post", url_path, data)
