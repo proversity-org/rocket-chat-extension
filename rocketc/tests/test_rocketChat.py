@@ -51,20 +51,24 @@ class TestRocketChat(unittest.TestCase):
         self.assertEqual(data_post, users)
         self.assertEqual(data_get, info)
 
+    @patch('rocketc.rocketc.RocketChatXBlock._set_avatar')
     @patch('rocketc.rocketc.RocketChatXBlock.create_token')
-    def test_login(self, mock_token):
+    def test_login(self, mock_token, mock_set_avatar):
         """Test for the login method"""
         mock_token.return_value = {'success': True}
         success = {'success': True}
         with patch('rocketc.rocketc.RocketChatXBlock.search_rocket_chat_user', return_value=success):
             result_if = self.block.login(self.block.user_data)
             mock_token.assert_called_with(self.block.user_data['username'])
+            mock_set_avatar.assert_called_with(self.block.user_data['username'])
 
         success['success'] = False
         with patch('rocketc.rocketc.RocketChatXBlock.search_rocket_chat_user', return_value=success):
             with patch('rocketc.rocketc.RocketChatXBlock.create_user'):
                 result_else = self.block.login(self.block.user_data)
                 mock_token.assert_called_with(self.block.user_data['username'])
+                mock_set_avatar.assert_called_with(self.block.user_data['username'])
+
 
         self.assertTrue(result_if['success'])
         self.assertTrue(result_else['success'])
