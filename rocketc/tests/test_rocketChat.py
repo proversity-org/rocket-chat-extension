@@ -209,3 +209,18 @@ class TestRocketChat(unittest.TestCase):
 
         self.block.change_role(user_id, role)
         mock_request.assert_called_with(method, url_path, data)
+
+    @patch('rocketc.rocketc.RocketChatXBlock._user_image_url')
+    @patch('rocketc.rocketc.RocketChatXBlock.request_rocket_chat')
+    def test_set_avatar(self, mock_request, mock_user_image_url):
+        """Test the method for set the avatar in RocketChat"""
+        method = "post"
+        username = "test_user_name"
+        url ="test_url"
+
+        mock_user_image_url.return_value = url
+        url_path = "users.setAvatar"
+
+        data = {"username": username, "avatarUrl": url}
+        self.block._set_avatar(username)
+        mock_request.assert_called_with(method, url_path, data)
