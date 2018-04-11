@@ -56,8 +56,6 @@ class RocketChatXBlock(XBlock):
         context["user_data"] = self.user_data
         context["admin_data"] = self.admin_data
 
-        url = self._user_image_url()
-
         frag = Fragment(LOADER.render_template(
             'static/html/rocketc.html', context))
         frag.add_css(self.resource_string("static/css/rocketc.css"))
