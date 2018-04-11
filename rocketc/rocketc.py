@@ -115,9 +115,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         """
         This method retunrs the rocketChat url service where someone can acces to API
         """
-        settings = self.get_xblock_settings()
-        if "url_service" in settings:
-            return "/".join([settings["url_service"], "api", "v1"])
+        xblock_settings = self.get_xblock_settings()
+        if "url_service" in xblock_settings:
+            return "/".join([xblock_settings["url_service"], "api", "v1"])
 
         return "/".join(["http://localhost:3000", "api", "v1"])
 
