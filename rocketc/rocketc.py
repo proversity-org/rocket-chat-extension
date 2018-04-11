@@ -28,7 +28,7 @@ class RocketChatXBlock(XBlock):
         help="The defined role in rocketChat"
     )
 
-    salt = "HarryPotter_y_elPrisonero_deAzkaban"
+    salt = "HarryPotter_and_thePrisoner_of _Azkaban"
 
     def resource_string(self, path):
         """Handy helper for getting resources from our kit."""

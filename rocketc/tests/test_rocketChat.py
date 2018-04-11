@@ -8,7 +8,7 @@ class TestRocketChat(unittest.TestCase):
     """ Unit tests for RocketChat Xblock"""
 
     def setUp(self):
-        """"""
+        """Set up general variables"""
         test_data = {"username": "test_user_name",
                 "anonymous_student_id": "test_anonymous_student_id",
                 "email": "test_email",
@@ -24,7 +24,7 @@ class TestRocketChat(unittest.TestCase):
         self.block.user_data = MagicMock(test_data)
 
     def test_request_rocket_chat(self):
-        """"""
+        """Test for the request rocket chat method """
         users = [{
             "user": {
                 "_id": "BsNr28znDkG8aeo7W",
@@ -51,10 +51,9 @@ class TestRocketChat(unittest.TestCase):
         self.assertEqual(data_post, users)
         self.assertEqual(data_get, info)
 
-    # Mock create token method
     @patch('rocketc.rocketc.RocketChatXBlock.create_token')
     def test_login(self, mock_token):
-        """"""
+        """Test for the login method"""
         mock_token.return_value = {'success': True}
         success = {'success': True}
         with patch('rocketc.rocketc.RocketChatXBlock.search_rocket_chat_user', return_value=success):
@@ -72,7 +71,7 @@ class TestRocketChat(unittest.TestCase):
 
     @patch('rocketc.rocketc.RocketChatXBlock.request_rocket_chat')
     def test_search_rocket_chat_user(self, mock_request):
-        """"""
+        """Test for the search user method"""
         method = "get"
         success = {'success': True}
         username = self.block.user_data['username']
@@ -86,7 +85,7 @@ class TestRocketChat(unittest.TestCase):
 
     @patch('rocketc.rocketc.RocketChatXBlock.request_rocket_chat')
     def test_search_rocket_chat_group(self, mock_request):
-        """"""
+        """Test for the search group method"""
         method = "get"
         success = {'success': True}
         room_name = "test_room_name"
@@ -100,14 +99,14 @@ class TestRocketChat(unittest.TestCase):
 
     @patch('rocketc.rocketc.RocketChatXBlock.request_rocket_chat')
     def test_create_user(self, mock_request):
-        """"""
+        """Test for the create user method"""
         method = "post"
         success = {'success': True}
 
         email = self.block.user_data['email']
         username = self.block.user_data['username']
         name = self.block.user_data['anonymous_student_id']
-        salt = "HarryPotter_y_elPrisonero_deAzkaban"
+        salt = "HarryPotter_and_thePrisoner_of _Azkaban"
 
         mock_request.return_value = success
         url_path = "users.create"
@@ -124,7 +123,7 @@ class TestRocketChat(unittest.TestCase):
 
     @patch('rocketc.rocketc.RocketChatXBlock.request_rocket_chat')
     def test_create_token(self, mock_request):
-        """"""
+        """Test for the create token method"""
         method = "post"
         success = {'success': True}
 
@@ -142,7 +141,7 @@ class TestRocketChat(unittest.TestCase):
 
     @patch('rocketc.rocketc.RocketChatXBlock.request_rocket_chat')
     def test_create_group(self, mock_request):
-        """"""
+        """Test for the create group method"""
         method = "post"
         success = {'success': True}
 
@@ -156,10 +155,9 @@ class TestRocketChat(unittest.TestCase):
         self.block.create_group(name)
         mock_request.assert_called_with(method, url_path, data)
 
-    # Mock create token method
     @patch('rocketc.rocketc.RocketChatXBlock.add_to_group')
     def test_add_to_course_group(self, mock_add_to_group):
-        """"""
+        """Test for the add course group method"""
         group_name = "test_group"
         user_id = "test_user_id"
         data = {'success': True, 'group': {'_id': "test_group_id"}}
@@ -175,7 +173,7 @@ class TestRocketChat(unittest.TestCase):
 
     @patch('rocketc.rocketc.RocketChatXBlock.request_rocket_chat')
     def test_add_to_group(self, mock_request):
-        """"""
+        """Test for the add group method"""
         method = "post"
         success = {'success': True}
 
@@ -193,7 +191,7 @@ class TestRocketChat(unittest.TestCase):
 
     @patch('rocketc.rocketc.RocketChatXBlock.request_rocket_chat')
     def test_change_role(self, mock_request):
-        """"""
+        """Test for chage role method"""
         method = "post"
         success = {'success': True}
 
