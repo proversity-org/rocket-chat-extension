@@ -76,6 +76,16 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
 
         return frag
 
+    def studio_view(self, context=None):
+        """  Returns edit studio view fragment """
+        # pylint: disable=unused-argument, no-self-use
+        frag = Fragment(u"Studio Runtime RocketChatXBlock")
+        frag.add_css(self.resource_string("static/css/rocketc.css"))
+        frag.add_javascript(self.resource_string("static/js/src/rocketc.js"))
+        frag.initialize_js('RocketChatXBlock')
+
+        return frag
+
     # TO-DO: change this to create the scenarios you'd like to see in the
     # workbench while developing your XBlock.
     @staticmethod
