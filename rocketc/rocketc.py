@@ -106,8 +106,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         if response['success']:
             response = response['data']
             user_id = response['userId']
-            self._update_user(user_id, user_data[
-                              "username"], user_data["email"])
+            self._update_user(user_id, user_data["username"], user_data["email"])
             self.add_to_course_group(
                 user_data["course"], user_id)
             if user_data["role"] == "instructor" and self.rocket_chat_role == "user":
@@ -278,7 +277,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         """
         if email != self.email:
             url_path = "users.update"
-            data = {"userId": user_id, "data": { "email": email}}
+            data = {"userId": user_id, "data": {"email": email}}
             response = self.request_rocket_chat("post", url_path, data)
             if response["success"]:
                 self.email = email
