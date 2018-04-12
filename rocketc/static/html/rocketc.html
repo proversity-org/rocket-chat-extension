@@ -1,17 +1,28 @@
 <div class="rocketc_block">
     <center>
+        {{user_data.default_group_enable}}
+        {% if user_data.default_group_enable%}
 
-        {% if user_data.role == "instructor"%}
-        <p>{{user_data.default_group_enable}}</p>
-        <p>{{admin_data}}</p>
-        {% endif %}
+            {% if "authToken" in response%}
+                <div class="embed-container">
+                    <iframe height="0" src="http://localhost:3000/home?authToken={{response.authToken}}&userId={{response.userId}}" >IFrame is not supported</iframe>
+                    <iframe id="myframe" src="http://localhost:3000/group/{{user_data.default_group}}?layout=embedded" >IFrame is not supported</iframe>
+                 </div>
+            {% else %}
+                {{response}}
+            {% endif %}
 
-        {% if "authToken" in response%}
-        <div class="embed-container">
-            <iframe id="myframe" src="{{user_data.url_service}}/home?authToken={{response.authToken}}&userId={{response.userId}}" >IFrame is not supported</iframe>
-        </div>
         {% else %}
-        {{response}}
+
+            {% if "authToken" in response%}
+        		<div class="embed-container">
+            		<iframe id="myframe" src="{{user_data.url_service}}/home?authToken={{response.authToken}}&userId={{response.userId}}" >IFrame is not supported</iframe>
+        		</div>
+            {% else %}
+                {{response}}
+            {% endif %}
+
         {% endif %}
+
     </center>
 </div>
