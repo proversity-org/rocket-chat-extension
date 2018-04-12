@@ -32,6 +32,11 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         default="user", scope=Scope.user_state,
         help="The defined role in rocketChat"
     )
+    default_channel = String(
+        default="",
+        scope=Scope.content,
+        help="This is the initial channel"
+        )
 
     salt = "HarryPotter_and_thePrisoner_of _Azkaban"
 
@@ -57,7 +62,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
 
         context["response"] = self.init()
         context["user_data"] = self.user_data
-        context["admin_data"] = self.admin_data
+        context["admin_data"] = self.default_channel
 
         frag = Fragment(LOADER.render_template(
             'static/html/rocketc.html', context))
@@ -79,7 +84,8 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
     def studio_view(self, context=None):
         """  Returns edit studio view fragment """
         # pylint: disable=unused-argument, no-self-use
-        frag = Fragment(u"Studio Runtime RocketChatXBlock")
+        frag = Fragment(LOADER.render_template(
+            'static/html/studio.html', context))
         frag.add_css(self.resource_string("static/css/rocketc.css"))
         frag.add_javascript(self.resource_string("static/js/src/rocketc.js"))
         frag.initialize_js('RocketChatXBlock')
@@ -152,6 +158,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         user_data["course"] = runtime.course_id.course
         user_data["username"] = user.opt_attrs['edx-platform.username']
         user_data["anonymous_student_id"] = runtime.anonymous_student_id
+        user_data["default_group"] = self.default_channel
         self.user_data = user_data  # pylint: disable=attribute-defined-outside-init
 
     def get_admin_data(self):
@@ -304,3 +311,24 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
             if response["success"]:
                 self.email = email
         self._set_avatar(username)
+
+    @XBlock.json_handler
+    def set_default_channel(self, data, suffix=""):
+        """
+        This method set the default variable for the channels
+        """
+        default_channel = data["channel"]
+        if default_channel != " " and default_channel!= None:
+            default_channel = default_channel.replace(" ", "_")
+            self.create_group(default_channel)
+            self.default_channel = default_channel
+
+    def add_to_default_group(self, group_name, user_id):
+        """
+        """
+        group_info = self.search_rocket_chat_group( group_name)
+
+        if group_info["success"]:
+            self.add_to_group(user_id, group_info['group']['_id'])
+            return True
+        return False

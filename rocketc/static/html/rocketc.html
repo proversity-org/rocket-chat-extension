@@ -2,7 +2,8 @@
     <center>
 
         {% if user_data.role == "instructor"%}
-
+        <p>{{user_data.default_group_enable}}</p>
+        <p>{{admin_data}}</p>
         {% endif %}
 
         {% if "authToken" in response%}
@@ -12,6 +13,5 @@
         {% else %}
         {{response}}
         {% endif %}
-
     </center>
 </div>
