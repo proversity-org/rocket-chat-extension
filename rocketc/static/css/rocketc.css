@@ -11,3 +11,19 @@
 .rocketc_block p:hover {
 	background-color: red;
 }
+
+.rocketc_block embed-container {
+    position: relative;
+    padding-bottom: 56.25%;
+    overflow: hidden;
+}
+
+#myframe{
+    position: relative;
+    display: block;
+    top:0;
+    left: 0;
+    width: 100%;
+    height: 500px;
+    border: none;
+}
