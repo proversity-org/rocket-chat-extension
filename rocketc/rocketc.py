@@ -110,6 +110,31 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
              """),
         ]
 
+    @property
+    def admin_data(self):
+        """
+        This method initializes admin's authToken and userId
+        """
+        url = "{}/{}".format(self.url_api_rocket_chat, "login")
+        data = {"user": "andrey92", "password": "edunext"}
+        headers = {"Content-type": "application/json"}
+        response = requests.post(url=url, json=data, headers=headers)
+        admin_data = {}  # pylint: disable=attribute-defined-outside-init
+        admin_data["auth_token"] = response.json()["data"]["authToken"]
+        admin_data["user_id"] = response.json()["data"]["userId"]
+
+        return admin_data
+
+    @property
+    def url_api_rocket_chat(self):
+        """
+        This method retunrs the rocketChat url service where someone can acces to API
+        """
+        xblock_settings = self.get_xblock_settings()
+        if "url_service" in xblock_settings:
+            return "/".join([xblock_settings["url_service"], "api", "v1"])
+        return "/".join(["http://localhost:3000", "api", "v1"])
+
     def init(self):
         """
         This method initializes the user's variables and
@@ -143,7 +168,6 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         xblock_settings = self.xblock_settings
         if "url_service" in xblock_settings:
             return "/".join([xblock_settings["url_service"], "api", "v1"])
-
         return "/".join(["http://localhost:3000", "api", "v1"])
 
     def get_user_data(self):
