@@ -105,6 +105,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         self.get_admin_data()
         self.get_user_data()
 
+        self.user_data["url_service"] = self.xblock_settings["url_service"]
         user_data = self.user_data
 
         response = self.login(user_data)
