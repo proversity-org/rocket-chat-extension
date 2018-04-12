@@ -20,6 +20,7 @@ class TestRocketChat(unittest.TestCase):
         scope_ids_mock.usage_id = u'0'
         self.block = RocketChatXBlock(
             self.runtime_mock, scope_ids=scope_ids_mock)
+        self.block.email = "email"
         self.block.admin_data = MagicMock()
         self.block.user_data = MagicMock(test_data)
         self.block.url_api_rocket_chat = MagicMock()
@@ -52,23 +53,21 @@ class TestRocketChat(unittest.TestCase):
         self.assertEqual(data_post, users)
         self.assertEqual(data_get, info)
 
-    @patch('rocketc.rocketc.RocketChatXBlock._set_avatar')
+    @patch('rocketc.rocketc.RocketChatXBlock._update_user')
     @patch('rocketc.rocketc.RocketChatXBlock.create_token')
-    def test_login(self, mock_token, mock_set_avatar):
+    def test_login(self, mock_token, mock_update_user):
         """Test for the login method"""
         mock_token.return_value = {'success': True}
         success = {'success': True}
         with patch('rocketc.rocketc.RocketChatXBlock.search_rocket_chat_user', return_value=success):
             result_if = self.block.login(self.block.user_data)
             mock_token.assert_called_with(self.block.user_data['username'])
-            mock_set_avatar.assert_called_with(self.block.user_data['username'])
 
         success['success'] = False
         with patch('rocketc.rocketc.RocketChatXBlock.search_rocket_chat_user', return_value=success):
             with patch('rocketc.rocketc.RocketChatXBlock.create_user'):
                 result_else = self.block.login(self.block.user_data)
                 mock_token.assert_called_with(self.block.user_data['username'])
-                mock_set_avatar.assert_called_with(self.block.user_data['username'])
 
 
         self.assertTrue(result_if['success'])
@@ -224,4 +223,25 @@ class TestRocketChat(unittest.TestCase):
 
         data = {"username": username, "avatarUrl": url}
         self.block._set_avatar(username)
+        mock_request.assert_called_with(method, url_path, data)
+
+    @patch('rocketc.rocketc.RocketChatXBlock.request_rocket_chat')
+    def test_update_user(self, mock_request):
+        """Test the metho to update the profile user"""
+        method = "post"
+        success = {'success': True}
+
+        user_id = "test_user_id"
+        username = "test_user_name"
+        email = "test_email"
+
+        mock_request.return_value = success
+        url_path = "users.update"
+
+        data = {"userId": user_id, "data": {"email": email }}
+
+        with patch('rocketc.rocketc.RocketChatXBlock._set_avatar'):
+            self.block._update_user(user_id, username, email)
+
+        self.assertEqual(self.block.email, email)
         mock_request.assert_called_with(method, url_path, data)

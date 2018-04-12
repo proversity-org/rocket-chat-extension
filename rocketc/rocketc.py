@@ -9,7 +9,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 
 from xblock.core import XBlock
-from xblock.fields import Integer, Scope, String
+from xblock.fields import Scope, String
 from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.settings import XBlockWithSettingsMixin
@@ -23,9 +23,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
     This class allows to embed a chat window inside a unit course
     and set the necessary variables to config the rocketChat enviroment
     """
-    count = Integer(
-        default=0, scope=Scope.user_state,
-        help="A simple counter, to show something happening",
+    email = String(
+        default="", scope=Scope.user_state,
+        help="Email in rocketChat",
     )
     rocket_chat_role = String(
         default="user", scope=Scope.user_state,
@@ -100,13 +100,17 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         self.get_admin_data()
         self.get_user_data()
 
-        response = self.login(self.user_data)
+        user_data = self. user_data
+
+        response = self.login(user_data)
         if response['success']:
             response = response['data']
+            user_id = response['userId']
+            self._update_user(user_id, user_data["username"], user_data["email"])
             self.add_to_course_group(
-                self.user_data["course"], response['userId'])
-            if self.user_data["role"] == "instructor" and self.rocket_chat_role == "user":
-                self.change_role(response['userId'], "bot")
+                user_data["course"], user_id)
+            if user_data["role"] == "instructor" and self.rocket_chat_role == "user":
+                self.change_role(user_id, "bot")
             return response
         else:
             return response['errorType']
@@ -170,7 +174,6 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
                              user_data["email"], user_data["username"])
             data = self.create_token(user_data["username"])
 
-        self._set_avatar(user_data["username"])
         return data
 
     def create_token(self, username):
@@ -254,10 +257,11 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
 
     def _user_image_url(self):
         """Returns an image url for the current user"""
-        from openedx_dependencies import get_profile_image_urls_for_user # pylint: disable=relative-import
+        from openedx_dependencies import get_profile_image_urls_for_user  # pylint: disable=relative-import
         current_user = User.objects.get(username=self.user_data["username"])
         base_url = settings.LMS_ROOT_URL
-        profile_image_url = get_profile_image_urls_for_user(current_user)["full"]
+        profile_image_url = get_profile_image_urls_for_user(current_user)[
+            "full"]
         image_url = "{}{}".format(base_url, profile_image_url)
         return image_url
 
@@ -266,3 +270,15 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         url_path = "users.setAvatar"
         data = {"username": username, "avatarUrl": image_url}
         self.request_rocket_chat("post", url_path, data)
+
+    def _update_user(self, user_id, username, email):
+        """
+        This method allows to update The user data
+        """
+        if email != self.email:
+            url_path = "users.update"
+            data = {"userId": user_id, "data": {"email": email}}
+            response = self.request_rocket_chat("post", url_path, data)
+            if response["success"]:
+                self.email = email
+        self._set_avatar(username)
