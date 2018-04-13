@@ -68,6 +68,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         context["response"] = self.init()
         context["user_data"] = self.user_data
         context["default_group_enable"] = self.default_group_enable
+        context["public_url_service"] = self.server_data["public_url_service"]
 
         frag = Fragment(LOADER.render_template(
             'static/html/rocketc.html', context))
@@ -135,9 +136,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         """
         This method retunrs the rocketChat url service where someone can acces to API
         """
-        xblock_settings = self.get_xblock_settings()
-        if "url_service" in xblock_settings:
-            return "/".join([xblock_settings["url_service"], "api", "v1"])
+        server_data = self.server_data
+        if "private_url_service" in server_data:
+            return "/".join([server_data["private_url_service"], "api", "v1"])
         return "/".join(["http://localhost:3000", "api", "v1"])
 
     @property
@@ -154,8 +155,17 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         user_data["username"] = user.opt_attrs['edx-platform.username']
         user_data["anonymous_student_id"] = runtime.anonymous_student_id
         user_data["default_group"] = self.default_channel
-        user_data["url_service"] = self.xblock_settings["url_service"]
         return user_data  # pylint: disable=attribute-defined-outside-init
+
+    @property
+    def server_data(self):
+        """
+        This method allows to get private and public url from xblock settings
+        """
+        xblock_settings = self.xblock_settings
+        server_data["private_url_service"] = xblock_settings["private_url_service"]
+        server_data["public_url_service"] = xblock_settings["public_url_service"]
+        return server_data
 
     def init(self):
         """
