@@ -2,6 +2,7 @@
 TO-DO: Write a description of what this XBlock is.
 """
 import hashlib
+import re
 import pkg_resources
 import requests
 
@@ -44,7 +45,6 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
     )
 
     salt = "HarryPotter_and_thePrisoner_of _Azkaban"
-
 
     def resource_string(self, path):
         """Handy helper for getting resources from our kit."""
@@ -130,7 +130,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         data = {"user": user, "password": password}
         headers = {"Content-type": "application/json"}
         response = requests.post(url=url, json=data, headers=headers)
-        admin_data = {}  # pylint: disable=attribute-defined-outside-init
+        admin_data = {}
         admin_data["auth_token"] = response.json()["data"]["authToken"]
         admin_data["user_id"] = response.json()["data"]["userId"]
 
@@ -156,11 +156,11 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         user_data = {}
         user_data["email"] = user.emails[0]
         user_data["role"] = runtime.get_user_role()
-        user_data["course"] = runtime.course_id.course
+        user_data["course"] = re.sub('[^A-Za-z0-9]+', '', runtime.course_id._to_string()) # pylint: disable=protected-access
         user_data["username"] = user.opt_attrs['edx-platform.username']
         user_data["anonymous_student_id"] = runtime.anonymous_student_id
         user_data["default_group"] = self.default_channel
-        return user_data  # pylint: disable=attribute-defined-outside-init
+        return user_data
 
     @property
     def server_data(self):
