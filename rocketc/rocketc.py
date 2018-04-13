@@ -266,8 +266,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         if rocket_chat_group['success']:
             self._add_to_group(user_id, rocket_chat_group['group']['_id'])
         else:
-            rocket_chat_group = self._create_group(group_name)
-            self._add_to_group(user_id, rocket_chat_group['group']['_id'])
+            rocket_chat_group = self._create_group(group_name, self.user_data["username"])
 
         self.group = self._search_rocket_chat_group(  # pylint: disable=attribute-defined-outside-init
             group_name)
@@ -287,12 +286,12 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         data = {"roomId": room_id, "userId": user_id}
         return self._request_rocket_chat("post", url_path, data)
 
-    def _create_group(self, name):
+    def _create_group(self, name, username):
         """
         This method creates a group with a specific name.
         """
         url_path = "groups.create"
-        data = {"name": name}
+        data = {"name": name, "members": [username]}
         return self._request_rocket_chat("post", url_path, data)
 
     def _request_rocket_chat(self, method, url_path, data=None):
