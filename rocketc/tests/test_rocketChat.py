@@ -17,8 +17,9 @@ class TestRocketChat(unittest.TestCase):
             self.runtime_mock, scope_ids=scope_ids_mock)
         self.block.email = "email"
 
+    @patch('rocketc.rocketc.RocketChatXBlock.url_api_rocket_chat')
     @patch('rocketc.rocketc.RocketChatXBlock.admin_data')
-    def test_request_rocket_chat(self, mock_response):
+    def test_request_rocket_chat(self, mock_admin, mock_url):
         """Test for the request rocket chat method """
         users = [{
             "user": {
