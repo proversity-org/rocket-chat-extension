@@ -9,7 +9,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 
 from xblock.core import XBlock
-from xblock.fields import Scope, String
+from xblock.fields import Scope, String, Boolean
 from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.settings import XBlockWithSettingsMixin
@@ -32,10 +32,19 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         default="user", scope=Scope.user_state,
         help="The defined role in rocketChat"
     )
+    default_channel = String(
+        default="",
+        scope=Scope.content,
+        help="This is the initial channel"
+    )
+    default_group_enable = Boolean(
+        default=False,
+        scope=Scope.user_state,
+        help="This is the flag for the initial channel",
+    )
 
     salt = "HarryPotter_and_thePrisoner_of _Azkaban"
 
-    xblock_settings = {}
 
     def resource_string(self, path):
         """Handy helper for getting resources from our kit."""
@@ -57,7 +66,8 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
 
         context["response"] = self.init()
         context["user_data"] = self.user_data
-        context["admin_data"] = self.admin_data
+        context["default_group_enable"] = self.default_group_enable
+        context["public_url_service"] = self.server_data["public_url_service"]
 
         frag = Fragment(LOADER.render_template(
             'static/html/rocketc.html', context))
@@ -70,6 +80,17 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         """  Returns author view fragment on Studio """
         # pylint: disable=unused-argument
         frag = Fragment(u"Studio Runtime RocketChatXBlock")
+        frag.add_css(self.resource_string("static/css/rocketc.css"))
+        frag.add_javascript(self.resource_string("static/js/src/rocketc.js"))
+        frag.initialize_js('RocketChatXBlock')
+
+        return frag
+
+    def studio_view(self, context=None):
+        """  Returns edit studio view fragment """
+        # pylint: disable=unused-argument, no-self-use
+        frag = Fragment(LOADER.render_template(
+            'static/html/studio.html', context))
         frag.add_css(self.resource_string("static/css/rocketc.css"))
         frag.add_javascript(self.resource_string("static/js/src/rocketc.js"))
         frag.initialize_js('RocketChatXBlock')
@@ -94,57 +115,8 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
              """),
         ]
 
-    def init(self):
-        """
-        This method initializes the user's variables and
-        log in to rocketchat account
-        """
-        self.xblock_settings = self.get_xblock_settings()
-        self.url_api_rocket_chat = self.get_url_api_rocket_chat(  # pylint: disable=attribute-defined-outside-init
-        )
-        self.get_admin_data()
-        self.get_user_data()
-
-        self.user_data["url_service"] = self.xblock_settings["url_service"]
-        user_data = self.user_data
-
-        response = self.login(user_data)
-        if response['success']:
-            response = response['data']
-            user_id = response['userId']
-            self._update_user(user_id, user_data["username"], user_data["email"])
-            self.add_to_course_group(user_data["course"], user_id)
-            if user_data["role"] == "instructor" and self.rocket_chat_role == "user":
-                self.change_role(user_id, "bot")
-            return response
-        else:
-            return response['errorType']
-
-    def get_url_api_rocket_chat(self):
-        """
-        This method retunrs the rocketChat url service where someone can acces to API
-        """
-        xblock_settings = self.xblock_settings
-        if "url_service" in xblock_settings:
-            return "/".join([xblock_settings["url_service"], "api", "v1"])
-
-        return "/".join(["http://localhost:3000", "api", "v1"])
-
-    def get_user_data(self):
-        """
-        This method initializes the user's parameters
-        """
-        runtime = self.xmodule_runtime  # pylint: disable=no-member
-        user = runtime.service(self, 'user').get_current_user()
-        user_data = {}
-        user_data["email"] = user.emails[0]
-        user_data["role"] = runtime.get_user_role()
-        user_data["course"] = runtime.course_id.course
-        user_data["username"] = user.opt_attrs['edx-platform.username']
-        user_data["anonymous_student_id"] = runtime.anonymous_student_id
-        self.user_data = user_data  # pylint: disable=attribute-defined-outside-init
-
-    def get_admin_data(self):
+    @property
+    def admin_data(self):
         """
         This method initializes admin's authToken and userId
         """
@@ -158,9 +130,78 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         data = {"user": user, "password": password}
         headers = {"Content-type": "application/json"}
         response = requests.post(url=url, json=data, headers=headers)
-        self.admin_data = {}  # pylint: disable=attribute-defined-outside-init
-        self.admin_data["auth_token"] = response.json()["data"]["authToken"]
-        self.admin_data["user_id"] = response.json()["data"]["userId"]
+        admin_data = {}  # pylint: disable=attribute-defined-outside-init
+        admin_data["auth_token"] = response.json()["data"]["authToken"]
+        admin_data["user_id"] = response.json()["data"]["userId"]
+
+        return admin_data
+
+    @property
+    def url_api_rocket_chat(self):
+        """
+        This method retunrs the rocketChat url service where someone can acces to API
+        """
+        server_data = self.server_data
+        if "private_url_service" in server_data:
+            return "/".join([server_data["private_url_service"], "api", "v1"])
+        return "/".join(["http://localhost:3000", "api", "v1"])
+
+    @property
+    def user_data(self):
+        """
+        This method initializes the user's parameters
+        """
+        runtime = self.xmodule_runtime  # pylint: disable=no-member
+        user = runtime.service(self, 'user').get_current_user()
+        user_data = {}
+        user_data["email"] = user.emails[0]
+        user_data["role"] = runtime.get_user_role()
+        user_data["course"] = runtime.course_id.course
+        user_data["username"] = user.opt_attrs['edx-platform.username']
+        user_data["anonymous_student_id"] = runtime.anonymous_student_id
+        user_data["default_group"] = self.default_channel
+        return user_data  # pylint: disable=attribute-defined-outside-init
+
+    @property
+    def server_data(self):
+        """
+        This method allows to get private and public url from xblock settings
+        """
+        xblock_settings = self.xblock_settings
+        server_data = {}
+        server_data["private_url_service"] = xblock_settings["private_url_service"]
+        server_data["public_url_service"] = xblock_settings["public_url_service"]
+        return server_data
+
+    @property
+    def xblock_settings(self):
+        """
+        This method allows to get the xblock settings
+        """
+        return self.get_xblock_settings()
+
+    def init(self):
+        """
+        This method initializes the user's variables and
+        log in to rocketchat account
+        """
+
+        user_data = self.user_data
+
+        response = self.login(user_data)
+        if response['success']:
+            response = response['data']
+            user_id = response['userId']
+            self._update_user(user_id, user_data["username"], user_data["email"])
+            self.add_to_course_group(
+                user_data["course"], user_id)
+            self.default_group_enable = self._add_to_default_group(
+                self.default_channel, user_id)
+            if user_data["role"] == "instructor" and self.rocket_chat_role == "user":
+                self.change_role(user_id, "bot")
+            return response
+        else:
+            return response['errorType']
 
     def search_rocket_chat_user(self, username):
         """
@@ -168,7 +209,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         """
         url_path = "{}?{}={}".format("users.info", "username", username)
 
-        return self.request_rocket_chat("get", url_path)
+        return self._request_rocket_chat("get", url_path)
 
     def login(self, user_data):
         """
@@ -193,14 +234,14 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         """
         url_path = "users.createToken"
         data = {'username': username}
-        return self.request_rocket_chat("post", url_path, data)
+        return self._request_rocket_chat("post", url_path, data)
 
     def change_role(self, user_id, role):
         """
         This method allows to change the user's role
         """
         data = {"userId": user_id, "data": {"roles": [role]}}
-        response = self.request_rocket_chat(
+        response = self._request_rocket_chat(
             "post", "users.update", data)
         if response["success"]:
             self.rocket_chat_role = role
@@ -214,47 +255,47 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         password = hashlib.sha1(password).hexdigest()
         data = {"name": name, "email": email,
                 "password": password, "username": username}
-        return self.request_rocket_chat("post", "users.create", data)
+        return self._request_rocket_chat("post", "users.create", data)
 
     def add_to_course_group(self, group_name, user_id):
         """
         This method add the user to the default course channel
         """
-        rocket_chat_group = self.search_rocket_chat_group(group_name)
+        rocket_chat_group = self._search_rocket_chat_group(group_name)
 
         if rocket_chat_group['success']:
-            self.add_to_group(user_id, rocket_chat_group['group']['_id'])
+            self._add_to_group(user_id, rocket_chat_group['group']['_id'])
         else:
-            rocket_chat_group = self.create_group(group_name)
-            self.add_to_group(user_id, rocket_chat_group['group']['_id'])
+            rocket_chat_group = self._create_group(group_name)
+            self._add_to_group(user_id, rocket_chat_group['group']['_id'])
 
-        self.group = self.search_rocket_chat_group(  # pylint: disable=attribute-defined-outside-init
+        self.group = self._search_rocket_chat_group(  # pylint: disable=attribute-defined-outside-init
             group_name)
 
-    def search_rocket_chat_group(self, room_name):
+    def _search_rocket_chat_group(self, room_name):
         """
         This method gets a group with a specific name and returns a json with group's info
         """
         url_path = "{}?{}={}".format("groups.info", "roomName", room_name)
-        return self.request_rocket_chat("get", url_path)
+        return self._request_rocket_chat("get", url_path)
 
-    def add_to_group(self, user_id, room_id):
+    def _add_to_group(self, user_id, room_id):
         """
         This method add any user to any group
         """
         url_path = "groups.invite"
         data = {"roomId": room_id, "userId": user_id}
-        return self.request_rocket_chat("post", url_path, data)
+        return self._request_rocket_chat("post", url_path, data)
 
-    def create_group(self, name):
+    def _create_group(self, name):
         """
         This method creates a group with a specific name.
         """
         url_path = "groups.create"
         data = {"name": name}
-        self.request_rocket_chat("post", url_path, data)
+        return self._request_rocket_chat("post", url_path, data)
 
-    def request_rocket_chat(self, method, url_path, data=None):
+    def _request_rocket_chat(self, method, url_path, data=None):
         """
         This method generates a call to the RocketChat API and returns a json with the response
         """
@@ -281,7 +322,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         image_url = self._user_image_url()
         url_path = "users.setAvatar"
         data = {"username": username, "avatarUrl": image_url}
-        self.request_rocket_chat("post", url_path, data)
+        self._request_rocket_chat("post", url_path, data)
 
     def _update_user(self, user_id, username, email):
         """
@@ -290,7 +331,29 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         if email != self.email:
             url_path = "users.update"
             data = {"userId": user_id, "data": {"email": email}}
-            response = self.request_rocket_chat("post", url_path, data)
+            response = self._request_rocket_chat("post", url_path, data)
             if response["success"]:
                 self.email = email
         self._set_avatar(username)
+
+    @XBlock.json_handler
+    def set_default_channel(self, data, suffix=""):
+        """
+        This method set the default variable for the channels
+        """
+        # pylint: disable=unused-argument
+        default_channel = data["channel"]
+        if default_channel != " " and default_channel is not None:
+            default_channel = default_channel.replace(" ", "_")
+            self._create_group(default_channel)
+            self.default_channel = default_channel
+
+    def _add_to_default_group(self, group_name, user_id):
+        """
+        """
+        group_info = self._search_rocket_chat_group(group_name)
+
+        if group_info["success"]:
+            self._add_to_group(user_id, group_info['group']['_id'])
+            return True
+        return False
