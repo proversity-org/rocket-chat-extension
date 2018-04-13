@@ -286,7 +286,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         data = {"roomId": room_id, "userId": user_id}
         return self._request_rocket_chat("post", url_path, data)
 
-    def _create_group(self, name, username):
+    def _create_group(self, name, username=""):
         """
         This method creates a group with a specific name.
         """

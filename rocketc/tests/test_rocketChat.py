@@ -152,18 +152,20 @@ class TestRocketChat(unittest.TestCase):
         success = {'success': True}
 
         name = "test_name"
+        username = "test_user_name"
 
         mock_request.return_value = success
         url_path = "groups.create"
 
-        data = {'name': name}
+        data = {'name': name, "members":[username]}
 
-        response = self.block._create_group(name)
+        response = self.block._create_group(name, username)
         self.assertEquals(response, success)
         mock_request.assert_called_with(method, url_path, data)
 
+    @patch('rocketc.rocketc.RocketChatXBlock.user_data')
     @patch('rocketc.rocketc.RocketChatXBlock._add_to_group')
-    def test_add_to_course_group(self, mock_add_to_group):
+    def test_add_to_course_group(self, mock_add_to_group, mock_user):
         """Test for the add course group method"""
         group_name = "test_group"
         user_id = "test_user_id"
