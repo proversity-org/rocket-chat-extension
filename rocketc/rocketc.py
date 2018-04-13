@@ -45,7 +45,6 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
 
     salt = "HarryPotter_and_thePrisoner_of _Azkaban"
 
-    xblock_settings = {}
 
     def resource_string(self, path):
         """Handy helper for getting resources from our kit."""
@@ -344,7 +343,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         """
         # pylint: disable=unused-argument
         default_channel = data["channel"]
-        if default_channel != " " and default_channel != None:
+        if default_channel != " " and default_channel is not None:
             default_channel = default_channel.replace(" ", "_")
             self._create_group(default_channel)
             self.default_channel = default_channel
