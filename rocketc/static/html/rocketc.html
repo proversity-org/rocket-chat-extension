@@ -4,8 +4,8 @@
 
             {% if "authToken" in response%}
                 <div class="embed-container">
-                    <iframe style="width:0;height:0;border:0; border:none;" src="http://localhost:3000/home?authToken={{response.authToken}}&userId={{response.userId}}" >IFrame is not supported</iframe>
-                    <iframe id="myframe" src="http://localhost:3000/group/{{user_data.default_group}}?layout=embedded" >IFrame is not supported</iframe>
+                    <iframe style="width:0;height:0;border:0; border:none;" src="{{public_url_service}}/home?authToken={{response.authToken}}&userId={{response.userId}}" >IFrame is not supported</iframe>
+                    <iframe id="myframe" src="{{public_url_service}}/group/{{user_data.default_group}}?layout=embedded" >IFrame is not supported</iframe>
                  </div>
             {% else %}
                 {{response}}
@@ -15,7 +15,7 @@
 
             {% if "authToken" in response%}
         		<div class="embed-container">
-            		<iframe id="myframe" src="{{user_data.url_service}}/home?authToken={{response.authToken}}&userId={{response.userId}}" >IFrame is not supported</iframe>
+            		<iframe id="myframe" src="{{public_url_service}}/home?authToken={{response.authToken}}&userId={{response.userId}}" >IFrame is not supported</iframe>
         		</div>
             {% else %}
                 {{response}}

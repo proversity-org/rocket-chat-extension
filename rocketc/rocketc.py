@@ -45,7 +45,6 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
 
     salt = "HarryPotter_and_thePrisoner_of _Azkaban"
 
-    xblock_settings = {}
 
     def resource_string(self, path):
         """Handy helper for getting resources from our kit."""
@@ -68,6 +67,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         context["response"] = self.init()
         context["user_data"] = self.user_data
         context["default_group_enable"] = self.default_group_enable
+        context["public_url_service"] = self.server_data["public_url_service"]
 
         frag = Fragment(LOADER.render_template(
             'static/html/rocketc.html', context))
@@ -120,8 +120,14 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         """
         This method initializes admin's authToken and userId
         """
+        try:
+            user = self.xblock_settings["admin_user"]
+            password = self.xblock_settings["admin_pass"]
+        except KeyError:
+            raise
+
         url = "{}/{}".format(self.url_api_rocket_chat, "login")
-        data = {"user": "andrey92", "password": "edunext"}
+        data = {"user": user, "password": password}
         headers = {"Content-type": "application/json"}
         response = requests.post(url=url, json=data, headers=headers)
         admin_data = {}  # pylint: disable=attribute-defined-outside-init
@@ -135,9 +141,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         """
         This method retunrs the rocketChat url service where someone can acces to API
         """
-        xblock_settings = self.get_xblock_settings()
-        if "url_service" in xblock_settings:
-            return "/".join([xblock_settings["url_service"], "api", "v1"])
+        server_data = self.server_data
+        if "private_url_service" in server_data:
+            return "/".join([server_data["private_url_service"], "api", "v1"])
         return "/".join(["http://localhost:3000", "api", "v1"])
 
     @property
@@ -154,15 +160,31 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         user_data["username"] = user.opt_attrs['edx-platform.username']
         user_data["anonymous_student_id"] = runtime.anonymous_student_id
         user_data["default_group"] = self.default_channel
-        user_data["url_service"] = self.xblock_settings["url_service"]
         return user_data  # pylint: disable=attribute-defined-outside-init
+
+    @property
+    def server_data(self):
+        """
+        This method allows to get private and public url from xblock settings
+        """
+        xblock_settings = self.xblock_settings
+        server_data = {}
+        server_data["private_url_service"] = xblock_settings["private_url_service"]
+        server_data["public_url_service"] = xblock_settings["public_url_service"]
+        return server_data
+
+    @property
+    def xblock_settings(self):
+        """
+        This method allows to get the xblock settings
+        """
+        return self.get_xblock_settings()
 
     def init(self):
         """
         This method initializes the user's variables and
         log in to rocketchat account
         """
-        self.xblock_settings = self.get_xblock_settings()
 
         user_data = self.user_data
 
@@ -321,7 +343,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         """
         # pylint: disable=unused-argument
         default_channel = data["channel"]
-        if default_channel != " " and default_channel != None:
+        if default_channel != " " and default_channel is not None:
             default_channel = default_channel.replace(" ", "_")
             self._create_group(default_channel)
             self.default_channel = default_channel
