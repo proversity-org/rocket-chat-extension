@@ -9,11 +9,11 @@ function RocketChatXBlock(runtime, element) {
 
     $("#button", element).click(function(eventObject) {
         var channel = $("#name", element).val();
-        console.log(channel);
+        var data = {channel};
         $.ajax({
             type: "POST",
             url: setDefaultChannel,
-            data: JSON.stringify({"channel": channel}),
+            data: JSON.stringify(data),
         });
-    })
+    });
 }

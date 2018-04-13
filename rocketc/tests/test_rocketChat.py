@@ -157,7 +157,8 @@ class TestRocketChat(unittest.TestCase):
 
         data = {'name': name}
 
-        self.block._create_group(name)
+        response = self.block._create_group(name)
+        self.assertEquals(response, success)
         mock_request.assert_called_with(method, url_path, data)
 
     @patch('rocketc.rocketc.RocketChatXBlock._add_to_group')
