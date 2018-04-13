@@ -2,6 +2,7 @@
 TO-DO: Write a description of what this XBlock is.
 """
 import hashlib
+import re
 import pkg_resources
 import requests
 
@@ -156,7 +157,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         user_data = {}
         user_data["email"] = user.emails[0]
         user_data["role"] = runtime.get_user_role()
-        user_data["course"] = runtime.course_id.course
+        user_data["course"] = re.sub('[^A-Za-z0-9]+', '', runtime.course_id._to_string())
         user_data["username"] = user.opt_attrs['edx-platform.username']
         user_data["anonymous_student_id"] = runtime.anonymous_student_id
         user_data["default_group"] = self.default_channel
