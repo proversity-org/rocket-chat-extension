@@ -121,7 +121,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         """
         This method initializes admin's authToken and userId
         """
-         try:
+        try:
             user = self.xblock_settings["admin_user"]
             password = self.xblock_settings["admin_pass"]
         except KeyError:
@@ -169,16 +169,23 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         This method allows to get private and public url from xblock settings
         """
         xblock_settings = self.xblock_settings
+        server_data = {}
         server_data["private_url_service"] = xblock_settings["private_url_service"]
         server_data["public_url_service"] = xblock_settings["public_url_service"]
         return server_data
+
+    @property
+    def xblock_settings(self):
+        """
+        This method allows to get the xblock settings
+        """
+        return self.get_xblock_settings()
 
     def init(self):
         """
         This method initializes the user's variables and
         log in to rocketchat account
         """
-        self.xblock_settings = self.get_xblock_settings()
 
         user_data = self.user_data
 
