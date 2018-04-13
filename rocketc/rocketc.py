@@ -121,8 +121,14 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         """
         This method initializes admin's authToken and userId
         """
+         try:
+            user = self.xblock_settings["admin_user"]
+            password = self.xblock_settings["admin_pass"]
+        except KeyError:
+            raise
+
         url = "{}/{}".format(self.url_api_rocket_chat, "login")
-        data = {"user": "andrey92", "password": "edunext"}
+        data = {"user": user, "password": password}
         headers = {"Content-type": "application/json"}
         response = requests.post(url=url, json=data, headers=headers)
         admin_data = {}  # pylint: disable=attribute-defined-outside-init
