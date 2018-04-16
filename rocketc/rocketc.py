@@ -315,6 +315,10 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         base_url = settings.LMS_ROOT_URL
         profile_image_url = get_profile_image_urls_for_user(current_user)[
             "full"]
+
+        if profile_image_url.startswith("http"):
+            base_url = ""
+
         image_url = "{}{}".format(base_url, profile_image_url)
         return image_url
 
