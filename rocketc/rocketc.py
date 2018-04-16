@@ -312,14 +312,15 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         """Returns an image url for the current user"""
         from openedx_dependencies import get_profile_image_urls_for_user  # pylint: disable=relative-import
         current_user = User.objects.get(username=self.user_data["username"])
-        base_url = settings.LMS_ROOT_URL
         profile_image_url = get_profile_image_urls_for_user(current_user)[
             "full"]
 
         if profile_image_url.startswith("http"):
-            base_url = ""
+            return profile_image_url
 
+        base_url = settings.LMS_ROOT_URL
         image_url = "{}{}".format(base_url, profile_image_url)
+
         return image_url
 
     def _set_avatar(self, username):
