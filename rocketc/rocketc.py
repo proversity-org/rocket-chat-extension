@@ -89,6 +89,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
     def studio_view(self, context=None):
         """  Returns edit studio view fragment """
         # pylint: disable=unused-argument, no-self-use
+        context["default_channel"] = self.default_channel
         frag = Fragment(LOADER.render_template(
             'static/html/studio.html', context))
         frag.add_css(self.resource_string("static/css/rocketc.css"))
