@@ -232,7 +232,7 @@ class TestRocketChat(unittest.TestCase):
 
     @patch('rocketc.rocketc.RocketChatXBlock._request_rocket_chat')
     def test_update_user(self, mock_request):
-        """Test the metho to update the profile user"""
+        """Test the method to update the profile user"""
         method = "post"
         success = {'success': True}
 
@@ -250,3 +250,24 @@ class TestRocketChat(unittest.TestCase):
 
         self.assertEqual(self.block.email, email)
         mock_request.assert_called_with(method, url_path, data)
+
+    @patch('rocketc.rocketc.RocketChatXBlock._request_rocket_chat')
+    def test_get_groups(self, mock_request):
+        """Test the method to get a group list"""
+        method = "get"
+        url_path = "groups.list"
+
+        groups = {"groups":[{"name": "group1"}]}
+        mock_request.return_value = groups
+
+        return_value = self.block.get_groups()
+
+        mock_request.assert_called_with(method, url_path)
+        self.assertIn("group1", return_value)
+
+        mock_request.return_value = {}
+
+        return_value = self.block.get_groups()
+
+        self.assertFalse(return_value)
+
