@@ -25,6 +25,11 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
     This class allows to embed a chat window inside a unit course
     and set the necessary variables to config the rocketChat enviroment
     """
+    display_name = String(
+        display_name="Display Name",
+        scope=Scope.settings,
+        default="Rocket Chat"
+    )
     email = String(
         default="", scope=Scope.user_state,
         help="Email in rocketChat",
