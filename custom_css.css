@@ -1,0 +1,6 @@
+/**This file,s content allows to disabled logout button in rocketChat.
+To set this feature, copy the content in Option-Administration-Layout-Custom CSS
+*/
+li[data-id='logout'] {
+    display: none;
+}
