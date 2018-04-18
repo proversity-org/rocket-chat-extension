@@ -36,7 +36,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
     )
 
     default_channel = String(
-        display_name="Deafult Channel",
+        display_name="Default Channel",
         default="",
         scope=Scope.content,
         help="This field allows to select the channel that would be accesible in the unit",
