@@ -14,13 +14,14 @@ from xblock.fields import Scope, String, Boolean
 from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.settings import XBlockWithSettingsMixin
+from xblockutils.studio_editable import StudioEditableXBlockMixin
 
 LOADER = ResourceLoader(__name__)
 
 
 @XBlock.wants("user")  # pylint: disable=too-many-ancestors
 @XBlock.wants("settings")
-class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
+class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
     """
     This class allows to embed a chat window inside a unit course
     and set the necessary variables to config the rocketChat enviroment
@@ -33,10 +34,13 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
         default="user", scope=Scope.user_state,
         help="The defined role in rocketChat"
     )
+
     default_channel = String(
+        display_name="Default Channel",
         default="",
         scope=Scope.content,
-        help="This is the initial channel"
+        help="This field allows to select the channel that would be accesible in the unit",
+        values_provider=lambda self: self.get_groups(),
     )
     default_group_enable = Boolean(
         default=False,
@@ -45,6 +49,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
     )
 
     salt = "HarryPotter_and_thePrisoner_of _Azkaban"
+
+    # Possible editable fields
+    editable_fields = ('default_channel', )
 
     def resource_string(self, path):
         """Handy helper for getting resources from our kit."""
@@ -86,18 +93,6 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
 
         return frag
 
-    def studio_view(self, context=None):
-        """  Returns edit studio view fragment """
-        # pylint: disable=unused-argument, no-self-use
-        context["default_channel"] = self.default_channel
-        frag = Fragment(LOADER.render_template(
-            'static/html/studio.html', context))
-        frag.add_css(self.resource_string("static/css/rocketc.css"))
-        frag.add_javascript(self.resource_string("static/js/src/rocketc.js"))
-        frag.initialize_js('RocketChatXBlock')
-
-        return frag
-
     # TO-DO: change this to create the scenarios you'd like to see in the
     # workbench while developing your XBlock.
     @staticmethod
@@ -119,7 +114,8 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
     @property
     def admin_data(self):
         """
-        This method initializes admin's authToken and userId
+        This property allows to use in the internal methods self.admin_data
+        as a class' field
         """
         try:
             user = self.xblock_settings["admin_user"]
@@ -362,3 +358,18 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin):
             self._add_to_group(user_id, group_info['group']['_id'])
             return True
         return False
+
+    def get_groups(self):
+        """
+        This method lists the existing groups
+        """
+        url_path = "groups.list"
+        method = "get"
+        response = self._request_rocket_chat(method, url_path)
+        list_groups = []
+
+        if "groups" in response:
+            for group in response["groups"]:
+                list_groups.append(group["name"])
+
+        return list_groups
