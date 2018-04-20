@@ -383,7 +383,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
     def _private_channel(self, room_name):
         url_search = "{}?{}={}".format("channels.info", "roomName", room_name)
         channel = self._request_rocket_chat("get", url_search)
-        if "channel" in channel:
+        if "channel" in channel and channel["channel"]["t"] == "c":
             channel_id = channel["channel"]["_id"]
             url_path = "channels.setType"
             data = {"roomId": channel_id, "type": "p"}
