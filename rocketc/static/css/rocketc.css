@@ -5,11 +5,7 @@
 }
 
 .rocketc_block p {
-    cursor: pointer;
-}
-
-.rocketc_block p:hover {
-	background-color: red;
+    text-align: center;
 }
 
 .rocketc_block embed-container {

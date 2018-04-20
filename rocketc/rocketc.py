@@ -99,6 +99,16 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
         return frag
 
+    def studio_view(self, context=None):
+        """  Returns edit studio view fragment """
+        frag = super(RocketChatXBlock, self).studio_view(context)
+        frag.add_content(LOADER.render_template(
+            'static/html/studio.html', context))
+        frag.add_css(self.resource_string("static/css/rocketc.css"))
+        frag.add_javascript(self.resource_string("static/js/src/studio_view.js"))
+        frag.initialize_js('StudioViewEdit')
+        return frag
+
     # TO-DO: change this to create the scenarios you'd like to see in the
     # workbench while developing your XBlock.
     @staticmethod
@@ -344,16 +354,32 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         self._set_avatar(username)
 
     @XBlock.json_handler
-    def set_default_channel(self, data, suffix=""):
+    def create_group(self, data, suffix=""):
         """
-        This method set the default variable for the channels
+        This method allows to create a group from studio
         """
         # pylint: disable=unused-argument
-        default_channel = data["channel"]
-        if default_channel != " " and default_channel is not None:
-            default_channel = default_channel.replace(" ", "_")
-            self._create_group(default_channel)
-            self.default_channel = default_channel
+
+        group_name = data["groupName"]
+        description = data["description"]
+        topic = data["topic"]
+
+        if group_name == "" or group_name is None:
+            return {"success": False, "error": "Group Name is not valid"}
+
+        group_name = group_name.replace(" ", "_")
+        group = self._create_group(group_name)
+
+        if group["success"]:
+            self.default_channel = group_name
+
+        if "group" in group:
+            group_id = group["group"]["_id"]
+
+            self._set_description(group_id, description)
+            self._set_topic(group_id, topic)
+
+        return group
 
     def _add_to_default_group(self, group_name, user_id):
         """
@@ -394,3 +420,29 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             url_path = "channels.setType"
             data = {"roomId": channel_id, "type": "p"}
             self._request_rocket_chat("post", url_path, data)
+
+    def _set_description(self, group_id, description):
+        """
+        This method allows to set a description's group
+        """
+        if description == "" or description is None:
+            return
+
+        url_path = "groups.setDescription"
+        data = {"roomId": group_id, "description": description}
+        method = "post"
+
+        self._request_rocket_chat(method, url_path, data)
+
+    def _set_topic(self, group_id, topic):
+        """
+        This method allows to set a topic's group
+        """
+        if topic == "" or topic is None:
+            return
+
+        url_path = "groups.setTopic"
+        data = {"roomId": group_id, "topic": topic}
+        method = "post"
+
+        self._request_rocket_chat(method, url_path, data)
