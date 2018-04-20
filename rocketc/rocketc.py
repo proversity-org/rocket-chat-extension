@@ -91,6 +91,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
     def author_view(self, context=None):
         """  Returns author view fragment on Studio """
         # pylint: disable=unused-argument
+        self._private_channel("general")
         frag = Fragment(u"Studio Runtime RocketChatXBlock")
         frag.add_css(self.resource_string("static/css/rocketc.css"))
         frag.add_javascript(self.resource_string("static/js/src/rocketc.js"))
@@ -378,3 +379,18 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
                 list_groups.append(group["name"])
 
         return list_groups
+
+    def _private_channel(self, room_name):
+        """
+        This method changes channels from public to private
+        the channel's type is define as t, when t = c is a public channel
+        and when t = p is a private channel
+        """
+        url_search = "{}?{}={}".format("channels.info", "roomName", room_name)
+        channel = self._request_rocket_chat("get", url_search)
+
+        if "channel" in channel and channel["channel"]["t"] == "c":
+            channel_id = channel["channel"]["_id"]
+            url_path = "channels.setType"
+            data = {"roomId": channel_id, "type": "p"}
+            self._request_rocket_chat("post", url_path, data)
