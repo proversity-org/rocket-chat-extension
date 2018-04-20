@@ -1,12 +1,63 @@
+
 <div class="rocketc_block">
+<div class="editor-with-buttons" style="display: none;">
+  <div class="wrapper-comp-settings is-active editor-with-buttons">
+    <ul class="list-input settings-list">
 
-    <div>
-        <label for="name">Channel:</label>
-        <input type="text" id="name" placeholder="{{default_channel}}" />
-    </div>
+        <li class="field comp-setting-entry metadata_entry ">
+          <div class="wrapper-comp-setting">
+            <label class="label setting-label">Group Name</label>
+              <input type="text" id="group-name" required></input>
+          </div>
+        </li>
 
-    <div class="button">
-        <button id="button" type="submit">Save</button>
-    </div>
+        <li class="field comp-setting-entry metadata_entry ">
+          <div class="wrapper-comp-setting">
+            <label class="label setting-label">Description</label>
+              <input type="text" id="group-description"></input>
+          </div>
+        </li>
 
+        <li class="field comp-setting-entry metadata_entry ">
+          <div class="wrapper-comp-setting">
+            <label class="label setting-label">Topic</label>
+              <input type="text" id="group-topic"></input>
+          </div>
+        </li>
+
+        <li class="field comp-setting-entry metadata_entry ">
+          <div class="wrapper-comp-setting">
+              <p id="message"></p>
+          </div>
+        </li>
+
+
+    </ul>
+  </div>
+
+  <div class="xblock-actions" style="background-color: #E5E5E5;">
+    <ul>
+      <li class="action-item">
+        <a href="#" class="button action-primary" id="button-create">Create Group</a>
+      </li>
+
+      <li class="action-item">
+        <a href="#" class="button cancel-button">Exit</a>
+      </li>
+    </ul>
+  </div>
+
+</div>
+</div>
+
+<div class="xblock-actions" id="options" style="cursor: pointer;">
+    <ul>
+      <li class="action-item">
+        <a  class="button action-primary" id="select-default" >DEFAULT CHANNEL</a>
+      </li>
+
+      <li class="action-item">
+        <a  class="button" id="select-create">CREATE GROUP</a>
+      </li>
+    </ul>
 </div>
