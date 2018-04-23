@@ -16,7 +16,6 @@ from xblockutils.resources import ResourceLoader
 from xblockutils.settings import XBlockWithSettingsMixin
 from xblockutils.studio_editable import StudioEditableXBlockMixin
 
-from xmodule.modulestore.django import modulestore
 
 LOADER = ResourceLoader(__name__)
 LOG = logging.getLogger(__name__)
@@ -214,7 +213,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         if response['success']:
             response = response['data']
             user_id = response['userId']
-            self._add_to_team_group( user_id, user_data["username"], user_data["course_id"])
+            self._add_to_team_group(user_id, user_data["username"], user_data["course_id"])
             self._update_user(user_id, user_data["username"], user_data["email"])
             self.add_to_course_group(
                 user_data["course"], user_id)
@@ -472,28 +471,31 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
         LOG.info("Method Set Topic: %s with this data: %s", response, data)
 
-    def teams_is_enabled(self, course_id):
+    @staticmethod
+    def teams_is_enabled(course_id):
         """
         This method verifies if teams are available
         """
+        from openedx_dependencies import modulestore  # pylint: disable=relative-import
         course = modulestore().get_course(course_id, depth=0)
         teams_configuration = course.teams_configuration
-        if len(teams_configuration["topics"]):
+        if teams_configuration["topics"]:
             return True
         return False
 
-    def _get_team(self, username, course_id):
+    @staticmethod
+    def _get_team(username, course_id):
         """
         This method gets the user's team
         """
-        from openedx_dependencies import CourseTeam
+        from openedx_dependencies import CourseTeam  # pylint: disable=relative-import
         result_filter = {"course_id": course_id, 'membership__user__username': username}
         team = CourseTeam.objects.filter(**result_filter)
         if team:
             return team[0]
         return None
 
-    def _add_to_team_group( self, user_id, username, course_id):
+    def _add_to_team_group(self, user_id, username, course_id):
         """
 
         """
@@ -508,6 +510,6 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         if group_info["success"]:
             response = self._add_to_group(user_id, group_info['group']['_id'])
             return response["success"]
-        else:
-            response = self._create_group(group_name, username)
-            return response["success"]
+
+        response = self._create_group(group_name, username)
+        return response["success"]
