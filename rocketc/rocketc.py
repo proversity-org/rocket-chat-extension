@@ -479,7 +479,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         from openedx_dependencies import modulestore  # pylint: disable=relative-import
         course = modulestore().get_course(course_id, depth=0)
         teams_configuration = course.teams_configuration
-        if teams_configuration["topics"]:
+        if "topics" in teams_configuration and teams_configuration["topics"]:
             return True
         return False
 
