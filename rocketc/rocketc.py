@@ -174,11 +174,10 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         """
         runtime = self.xmodule_runtime  # pylint: disable=no-member
         user = runtime.service(self, 'user').get_current_user()
-        settings_service = self.runtime.service(self, "settings")
         user_data = {}
-        user_data["p"] = self.teams_is_enabled(runtime.course_id)
         user_data["email"] = user.emails[0]
         user_data["role"] = runtime.get_user_role()
+        user_data["course_id"] = runtime.course_id
         user_data["course"] = re.sub('[^A-Za-z0-9]+', '', runtime.course_id._to_string()) # pylint: disable=protected-access
         user_data["username"] = user.opt_attrs['edx-platform.username']
         user_data["anonymous_student_id"] = runtime.anonymous_student_id
@@ -215,6 +214,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         if response['success']:
             response = response['data']
             user_id = response['userId']
+            self._add_to_team_group( user_id, user_data["username"], user_data["course_id"])
             self._update_user(user_id, user_data["username"], user_data["email"])
             self.add_to_course_group(
                 user_data["course"], user_id)
@@ -473,8 +473,41 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         LOG.info("Method Set Topic: %s with this data: %s", response, data)
 
     def teams_is_enabled(self, course_id):
+        """
+        This method verifies if teams are available
+        """
         course = modulestore().get_course(course_id, depth=0)
         teams_configuration = course.teams_configuration
         if len(teams_configuration["topics"]):
             return True
         return False
+
+    def _get_team(self, username, course_id):
+        """
+        This method gets the user's team
+        """
+        from openedx_dependencies import CourseTeam
+        result_filter = {"course_id": course_id, 'membership__user__username': username}
+        team = CourseTeam.objects.filter(**result_filter)
+        if team:
+            return team[0]
+        return None
+
+    def _add_to_team_group( self, user_id, username, course_id):
+        """
+
+        """
+        team = self._get_team(username, course_id)
+
+        if team is None:
+            return False
+
+        group_name = "-".join(["Team", team.topic_id, team.name])
+        group_info = self._search_rocket_chat_group(group_name)
+
+        if group_info["success"]:
+            response = self._add_to_group(user_id, group_info['group']['_id'])
+            return response["success"]
+        else:
+            response = self._create_group(group_name, username)
+            return response["success"]
