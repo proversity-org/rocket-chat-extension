@@ -49,7 +49,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         help="This field allows to select the channel that would be accesible in the unit",
         values_provider=lambda self: self.get_groups(),
     )
-    default_group_enable = Boolean(
+    ui_is_block = Boolean(
         default=False,
         scope=Scope.user_state,
         help="This is the flag for the initial channel",
@@ -67,6 +67,10 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         default=True,
         scope=Scope.content,
         help="This field allows to select the view of rocketchat (completed view or embeded view)",
+    )
+    team_channel = String(
+        default=None,
+        scope=Scope.user_info,
     )
     salt = "HarryPotter_and_thePrisoner_of _Azkaban"
 
@@ -93,7 +97,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
         context["response"] = self.init()
         context["user_data"] = self.user_data
-        context["default_group_enable"] = self.default_group_enable
+        context["ui_is_block"] = self.ui_is_block
         context["public_url_service"] = self.server_data["public_url_service"]
 
         frag = Fragment(LOADER.render_template(
@@ -193,7 +197,12 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         user_data["course"] = re.sub('[^A-Za-z0-9]+', '', runtime.course_id._to_string()) # pylint: disable=protected-access
         user_data["username"] = user.opt_attrs['edx-platform.username']
         user_data["anonymous_student_id"] = runtime.anonymous_student_id
-        user_data["default_group"] = self.default_channel
+
+        if self.enabled_team:
+            user_data["default_group"] = self.team_channel
+        else:
+            user_data["default_group"] = self.default_channel
+
         return user_data
 
     @property
@@ -226,12 +235,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         if response['success']:
             response = response['data']
             user_id = response['userId']
-            self._add_to_team_group(user_id, user_data["username"], user_data["course_id"])
-            self._update_user(user_id, user_data["username"], user_data["email"])
-            self.add_to_course_group(
-                user_data["course"], user_id)
-            self.default_group_enable = self._add_to_default_group(
-                self.default_channel, user_id)
+
+            self._join_groups(user_id, user_data)
+
             if user_data["role"] == "instructor" and self.rocket_chat_role == "user":
                 self.change_role(user_id, "bot")
             return response
@@ -493,12 +499,15 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         try:
             course_id = self.runtime.course_id  # pylint: disable=no-member
         except AttributeError:
+            self.teams_enabled = False
             return False
 
         course = modulestore().get_course(course_id, depth=0)
         teams_configuration = course.teams_configuration
         if "topics" in teams_configuration and teams_configuration["topics"]:
             return True
+
+        self.enabled_team = False
         return False
 
     @staticmethod
@@ -524,6 +533,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
         group_name = "-".join(["Team", team.topic_id, team.name])
         group_info = self._search_rocket_chat_group(group_name)
+        self.team_channel = group_name
 
         if group_info["success"]:
             response = self._add_to_group(user_id, group_info['group']['_id'])
@@ -539,3 +549,22 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         """
         # pylint: disable=unused-argument
         return self._teams_is_enabled()
+
+    def _join_groups(self, user_id, user_data):
+        """
+        This methodd add the user to the diferent channels
+        """
+        default_channel = self.default_channel
+
+        if self.enabled_ui:
+            self.ui_is_block = False
+            self.add_to_course_group(user_data["course"], user_id)
+
+        elif self.enabled_team:
+            self.ui_is_block = self._add_to_team_group(
+                user_id, user_data["username"], user_data["course_id"])
+
+        elif default_channel is not None and default_channel != "":
+            self.ui_is_block = self._add_to_default_group(default_channel, user_id)
+
+        self._update_user(user_id, user_data["username"], user_data["email"])
