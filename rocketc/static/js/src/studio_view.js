@@ -17,6 +17,7 @@ function StudioViewEdit(runtime, element) {
     }
 
     var createGroup = runtime.handlerUrl(element, "create_group");
+    var teamsEnabled = runtime.handlerUrl(element, "teams_enabled")
 
     $("#button-create").click(function(eventObject) {
         var groupName = $("#group-name").val();
@@ -45,6 +46,20 @@ function StudioViewEdit(runtime, element) {
         $(".rocketc_block .editor-with-buttons").css("display", "block");
         $("#select-create").attr("class", "button action-primary");
         $("#select-default").attr("class", "button");
+    });
+
+    function enabledTeams(data){
+        $("#xb-field-edit-enabled_team").prop('disabled', !data);
+    }
+
+    $(function ($) {
+        var data = {}
+        $.ajax({
+            type: "POST",
+            url: teamsEnabled,
+            data: JSON.stringify(data),
+            success: enabledTeams
+        });
     });
 
 }

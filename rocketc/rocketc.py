@@ -43,8 +43,8 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
     )
 
     default_channel = String(
-        display_name="Default Channel",
-        default="",
+        display_name="Specific Channel",
+        default=None,
         scope=Scope.content,
         help="This field allows to select the channel that would be accesible in the unit",
         values_provider=lambda self: self.get_groups(),
@@ -55,10 +55,23 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         help="This is the flag for the initial channel",
     )
 
+    enabled_team = Boolean(
+        display_name="Team Discussion",
+        default=False,
+        scope=Scope.content,
+        help="This field allows to select the team channel as a embeded channel",
+        )
+
+    enabled_ui = Boolean(
+        display_name="Main View",
+        default=True,
+        scope=Scope.content,
+        help="This field allows to select the view of rocketchat (completed view or embeded view)",
+    )
     salt = "HarryPotter_and_thePrisoner_of _Azkaban"
 
     # Possible editable fields
-    editable_fields = ('default_channel', )
+    editable_fields = ('enabled_ui', 'enabled_team', 'default_channel')
 
     def resource_string(self, path):
         """Handy helper for getting resources from our kit."""
@@ -421,6 +434,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         list_groups = []
 
         if "groups" in response:
+            list_groups.append("")
             for group in response["groups"]:
                 list_groups.append(group["name"])
 
@@ -471,12 +485,16 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
         LOG.info("Method Set Topic: %s with this data: %s", response, data)
 
-    @staticmethod
-    def teams_is_enabled(course_id):
+    def _teams_is_enabled(self):
         """
         This method verifies if teams are available
         """
         from openedx_dependencies import modulestore  # pylint: disable=relative-import
+        try:
+            course_id = self.runtime.course_id  # pylint: disable=no-member
+        except AttributeError:
+            return False
+
         course = modulestore().get_course(course_id, depth=0)
         teams_configuration = course.teams_configuration
         if "topics" in teams_configuration and teams_configuration["topics"]:
@@ -497,7 +515,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
     def _add_to_team_group(self, user_id, username, course_id):
         """
-
+        Add the user to team's group in rocketChat
         """
         team = self._get_team(username, course_id)
 
@@ -513,3 +531,11 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
         response = self._create_group(group_name, username)
         return response["success"]
+
+    @XBlock.json_handler
+    def teams_enabled(self, data, suffix=""):
+        """
+        This method return if teams are avalible
+        """
+        # pylint: disable=unused-argument
+        return self._teams_is_enabled()
