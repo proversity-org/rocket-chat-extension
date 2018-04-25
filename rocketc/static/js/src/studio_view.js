@@ -17,7 +17,6 @@ function StudioViewEdit(runtime, element) {
     }
 
     var createGroup = runtime.handlerUrl(element, "create_group");
-    var teamsEnabled = runtime.handlerUrl(element, "teams_enabled")
 
     $("#button-create").click(function(eventObject) {
         var groupName = $("#group-name").val();
@@ -48,18 +47,22 @@ function StudioViewEdit(runtime, element) {
         $("#select-default").attr("class", "button");
     });
 
-    function enabledTeams(data){
-        $("#xb-field-edit-enabled_team").prop('disabled', !data);
-    }
+    $("#xb-field-edit-channel").on('change', function() {
 
-    $(function ($) {
-        var data = {}
-        $.ajax({
-            type: "POST",
-            url: teamsEnabled,
-            data: JSON.stringify(data),
-            success: enabledTeams
-        });
+        if(this.value === "Specific Channel"){
+            $("#xb-field-edit-default_channel").prop('disabled', false);
+        }else{
+            $("#xb-field-edit-default_channel").prop('disabled', true);
+        }
     });
 
+    $(function ($) {
+
+        if( $( "#xb-field-edit-channel" ).val() === "Specific Channel"){
+            $("#xb-field-edit-default_channel").prop('disabled', false);
+        }else{
+            $("#xb-field-edit-default_channel").prop('disabled', true);
+        }
+
+    });
 }
