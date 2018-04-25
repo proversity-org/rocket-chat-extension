@@ -3,6 +3,7 @@ TO-DO: Write a description of what this XBlock is.
 """
 import hashlib
 import re
+import logging
 import pkg_resources
 import requests
 
@@ -17,6 +18,7 @@ from xblockutils.settings import XBlockWithSettingsMixin
 from xblockutils.studio_editable import StudioEditableXBlockMixin
 
 LOADER = ResourceLoader(__name__)
+LOG = logging.getLogger(__name__)
 
 
 @XBlock.wants("user")  # pylint: disable=too-many-ancestors
@@ -137,6 +139,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             user = self.xblock_settings["admin_user"]
             password = self.xblock_settings["admin_pass"]
         except KeyError:
+            LOG.exception("The admin's settings has not been found")
             raise
 
         url = "{}/{}".format(self.url_api_rocket_chat, "login")
@@ -146,6 +149,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         admin_data = {}
         admin_data["auth_token"] = response.json()["data"]["authToken"]
         admin_data["user_id"] = response.json()["data"]["userId"]
+
+        LOG.info("Auth_token: %s, User_id: %s ", admin_data[
+            "auth_token"], admin_data["user_id"])
 
         return admin_data
 
@@ -157,6 +163,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         server_data = self.server_data
         if "private_url_service" in server_data:
             return "/".join([server_data["private_url_service"], "api", "v1"])
+        LOG.warning("The request will be made to localhost")
         return "/".join(["http://localhost:3000", "api", "v1"])
 
     @property
@@ -230,14 +237,18 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         or creates a user to login in RocketChat
         """
         rocket_chat_user = self.search_rocket_chat_user(user_data["username"])
+        LOG.info("Login method: result search user: %s", rocket_chat_user["success"])
 
         if rocket_chat_user['success']:
             data = self.create_token(user_data["username"])
 
         else:
-            self.create_user(user_data["anonymous_student_id"],
-                             user_data["email"], user_data["username"])
+            response = self.create_user(user_data["anonymous_student_id"], user_data[
+                "email"], user_data["username"])
+            LOG.info("Login method: result create user : %s", response)
             data = self.create_token(user_data["username"])
+
+        LOG.info("Login method: result create token: %s", data)
 
         return data
 
@@ -297,7 +308,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         """
         url_path = "groups.invite"
         data = {"roomId": room_id, "userId": user_id}
-        return self._request_rocket_chat("post", url_path, data)
+        response = self._request_rocket_chat("post", url_path, data)
+        LOG.info("Method Add to Group: %s with this data: %s", response, data)
+        return response
 
     def _create_group(self, name, username=""):
         """
@@ -305,7 +318,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         """
         url_path = "groups.create"
         data = {"name": name, "members": [username]}
-        return self._request_rocket_chat("post", url_path, data)
+        response = self._request_rocket_chat("post", url_path, data)
+        LOG.info("Method Create Group: %s with this data: %s", response, data)
+        return response
 
     def _request_rocket_chat(self, method, url_path, data=None):
         """
@@ -332,14 +347,15 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
         base_url = settings.LMS_ROOT_URL
         image_url = "{}{}".format(base_url, profile_image_url)
-
+        LOG.info("User image url: %s ", image_url)
         return image_url
 
     def _set_avatar(self, username):
         image_url = self._user_image_url()
         url_path = "users.setAvatar"
         data = {"username": username, "avatarUrl": image_url}
-        self._request_rocket_chat("post", url_path, data)
+        response = self._request_rocket_chat("post", url_path, data)
+        LOG.info("Method set avatar: %s with this data: %s", response, data)
 
     def _update_user(self, user_id, username, email):
         """
@@ -349,6 +365,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             url_path = "users.update"
             data = {"userId": user_id, "data": {"email": email}}
             response = self._request_rocket_chat("post", url_path, data)
+            LOG.info("Method Update User: %s with this data: %s", response, data)
             if response["success"]:
                 self.email = email
         self._set_avatar(username)
@@ -379,6 +396,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             self._set_description(group_id, description)
             self._set_topic(group_id, topic)
 
+        LOG.info("Method Public Create Group: %s", group)
         return group
 
     def _add_to_default_group(self, group_name, user_id):
@@ -432,7 +450,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         data = {"roomId": group_id, "description": description}
         method = "post"
 
-        self._request_rocket_chat(method, url_path, data)
+        response = self._request_rocket_chat(method, url_path, data)
+
+        LOG.info("Method Set Description %s with this data: %s", response, data)
 
     def _set_topic(self, group_id, topic):
         """
@@ -445,4 +465,6 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         data = {"roomId": group_id, "topic": topic}
         method = "post"
 
-        self._request_rocket_chat(method, url_path, data)
+        response = self._request_rocket_chat(method, url_path, data)
+
+        LOG.info("Method Set Topic: %s with this data: %s", response, data)
