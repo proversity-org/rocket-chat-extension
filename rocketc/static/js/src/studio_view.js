@@ -47,21 +47,21 @@ function StudioViewEdit(runtime, element) {
         $("#select-default").attr("class", "button");
     });
 
-    $("#xb-field-edit-channel").on('change', function() {
+    $("#xb-field-edit-channel").on("change", function() {
 
         if(this.value === "Specific Channel"){
-            $("#xb-field-edit-default_channel").prop('disabled', false);
+            $("#xb-field-edit-default_channel").prop("disabled", false);
         }else{
-            $("#xb-field-edit-default_channel").prop('disabled', true);
+            $("#xb-field-edit-default_channel").prop("disabled", true);
         }
     });
 
     $(function ($) {
 
         if( $( "#xb-field-edit-channel" ).val() === "Specific Channel"){
-            $("#xb-field-edit-default_channel").prop('disabled', false);
+            $("#xb-field-edit-default_channel").prop("disabled", false);
         }else{
-            $("#xb-field-edit-default_channel").prop('disabled', true);
+            $("#xb-field-edit-default_channel").prop("disabled", true);
         }
 
     });

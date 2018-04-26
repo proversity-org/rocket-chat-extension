@@ -2,9 +2,12 @@
 TO-DO: Write a description of what this XBlock is.
 """
 import hashlib
+import logging
 import re
 import pkg_resources
 import requests
+
+from api_teams import ApiTeams  # pylint: disable=relative-import
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -497,19 +500,29 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
         course = modulestore().get_course(course_id, depth=0)
         teams_configuration = course.teams_configuration
+        LOG.info("Team is enabled result: %s", teams_configuration)
         if "topics" in teams_configuration and teams_configuration["topics"]:
             return True
 
         return False
 
-    @staticmethod
-    def _get_team(username, course_id):
+    def _get_team(self, username, course_id):
         """
         This method gets the user's team
         """
-        from openedx_dependencies import CourseTeam  # pylint: disable=relative-import
-        result_filter = {"course_id": course_id, 'membership__user__username': username}
-        team = CourseTeam.objects.filter(**result_filter)
+        try:
+            user = self.xblock_settings["username"]
+            password = self.xblock_settings["password"]
+            client_id = self.xblock_settings["client_id"]
+            client_secret = self.xblock_settings["client_secret"]
+        except KeyError:
+            raise
+
+        server_url = settings.LMS_ROOT_URL
+
+        api = ApiTeams(user, password, client_id, client_secret, server_url)
+        team = api.get_user_team(course_id, username)
+        LOG.info("Get Team response: %s", team)
         if team:
             return team[0]
         return None
@@ -523,15 +536,17 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         if team is None:
             return False
 
-        group_name = "-".join(["Team", team.topic_id, team.name])
+        group_name = "-".join(["Team", team["topic_id"], team["name"]])
         group_info = self._search_rocket_chat_group(group_name)
         self.team_channel = group_name
 
         if group_info["success"]:
             response = self._add_to_group(user_id, group_info['group']['_id'])
+            LOG.info("Add to team group response: %s", response)
             return response["success"]
 
         response = self._create_group(group_name, username)
+        LOG.info("Add to team group response: %s", response)
         return response["success"]
 
     def _join_groups(self, user_id, user_data):
