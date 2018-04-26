@@ -5,9 +5,9 @@ import hashlib
 import logging
 import re
 import pkg_resources
-import requests
 
 from api_teams import ApiTeams  # pylint: disable=relative-import
+from api_rocket_chat import ApiRocketChat  # pylint: disable=relative-import
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -37,7 +37,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         default="Rocket Chat"
     )
     email = String(
-        default="", scope=Scope.user_state,
+        default="", scope=Scope.user_info,
         help="Email in rocketChat",
     )
     rocket_chat_role = String(
@@ -66,11 +66,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         values_provider=lambda self: self.channels_enabled(),
     )
 
-    team_channel = String(
-        default=None,
-        scope=Scope.user_info,
-    )
-    salt = "HarryPotter_and_thePrisoner_of _Azkaban"
+    team_channel = ""
 
     # Possible editable fields
     editable_fields = ('channel', 'default_channel')
@@ -108,7 +104,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
     def author_view(self, context=None):
         """  Returns author view fragment on Studio """
         # pylint: disable=unused-argument
-        self._private_channel("general")
+        self.api_rocket_chat.private_channel("general")
         frag = Fragment(u"Studio Runtime RocketChatXBlock")
         frag.add_css(self.resource_string("static/css/rocketc.css"))
         frag.add_javascript(self.resource_string("static/js/src/rocketc.js"))
@@ -145,10 +141,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         ]
 
     @property
-    def admin_data(self):
+    def api_rocket_chat(self):
         """
-        This property allows to use in the internal methods self.admin_data
-        as a class' field
+        Creates an ApiRcoketChat object
         """
         try:
             user = self.xblock_settings["admin_user"]
@@ -156,30 +151,22 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         except KeyError:
             LOG.exception("The admin's settings has not been found")
             raise
+        api = ApiRocketChat(user, password, self.server_data["private_url_service"])
 
-        url = "{}/{}".format(self.url_api_rocket_chat, "login")
-        data = {"user": user, "password": password}
-        headers = {"Content-type": "application/json"}
-        response = requests.post(url=url, json=data, headers=headers)
-        admin_data = {}
-        admin_data["auth_token"] = response.json()["data"]["authToken"]
-        admin_data["user_id"] = response.json()["data"]["userId"]
+        LOG.info("Api rocketChat initialize: %s ", api)
 
-        LOG.info("Auth_token: %s, User_id: %s ", admin_data[
-            "auth_token"], admin_data["user_id"])
-
-        return admin_data
+        return api
 
     @property
-    def url_api_rocket_chat(self):
+    def server_data(self):
         """
-        This method retunrs the rocketChat url service where someone can acces to API
+        This method allows to get private and public url from xblock settings
         """
-        server_data = self.server_data
-        if "private_url_service" in server_data:
-            return "/".join([server_data["private_url_service"], "api", "v1"])
-        LOG.warning("The request will be made to localhost")
-        return "/".join(["http://localhost:3000", "api", "v1"])
+        xblock_settings = self.xblock_settings
+        server_data = {}
+        server_data["private_url_service"] = xblock_settings["private_url_service"]
+        server_data["public_url_service"] = xblock_settings["public_url_service"]
+        return server_data
 
     @property
     def user_data(self):
@@ -204,22 +191,25 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         return user_data
 
     @property
-    def server_data(self):
-        """
-        This method allows to get private and public url from xblock settings
-        """
-        xblock_settings = self.xblock_settings
-        server_data = {}
-        server_data["private_url_service"] = xblock_settings["private_url_service"]
-        server_data["public_url_service"] = xblock_settings["public_url_service"]
-        return server_data
-
-    @property
     def xblock_settings(self):
         """
         This method allows to get the xblock settings
         """
         return self.get_xblock_settings()
+
+    def channels_enabled(self):
+        """
+        This method returns a list with the channel options
+        """
+        if self._teams_is_enabled():
+            return ["Main View", "Team Discussion", "Specific Channel"]
+        return ["Main View", "Specific Channel"]
+
+    def get_groups(self):
+        """
+        This method lists the existing groups
+        """
+        return self.api_rocket_chat.get_groups()
 
     def init(self):
         """
@@ -237,274 +227,83 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             self._join_groups(user_id, user_data)
 
             if user_data["role"] == "instructor" and self.rocket_chat_role == "user":
-                self.change_role(user_id, "bot")
+                self.api_rocket_chat.change_role(user_id, "bot")
             return response
         else:
             return response['errorType']
-
-    def search_rocket_chat_user(self, username):
-        """
-        This method allows to get a user from RocketChat data base
-        """
-        url_path = "{}?{}={}".format("users.info", "username", username)
-
-        return self._request_rocket_chat("get", url_path)
 
     def login(self, user_data):
         """
         This method allows to get the user's authToken and id
         or creates a user to login in RocketChat
         """
-        rocket_chat_user = self.search_rocket_chat_user(user_data["username"])
+        api = self.api_rocket_chat
+
+        rocket_chat_user = api.search_rocket_chat_user(user_data["username"])
         LOG.info("Login method: result search user: %s", rocket_chat_user["success"])
 
         if rocket_chat_user['success']:
-            data = self.create_token(user_data["username"])
+            data = api.create_token(user_data["username"])
 
         else:
-            response = self.create_user(user_data["anonymous_student_id"], user_data[
+            response = api.create_user(user_data["anonymous_student_id"], user_data[
                 "email"], user_data["username"])
             LOG.info("Login method: result create user : %s", response)
-            data = self.create_token(user_data["username"])
+
+            data = api.create_token(user_data["username"])
 
         LOG.info("Login method: result create token: %s", data)
 
         return data
 
-    def create_token(self, username):
-        """
-        This method generates a token that allows to login
-        """
-        url_path = "users.createToken"
-        data = {'username': username}
-        return self._request_rocket_chat("post", url_path, data)
-
-    def change_role(self, user_id, role):
-        """
-        This method allows to change the user's role
-        """
-        data = {"userId": user_id, "data": {"roles": [role]}}
-        response = self._request_rocket_chat(
-            "post", "users.update", data)
-        if response["success"]:
-            self.rocket_chat_role = role
-
-    def create_user(self, name, email, username):
-        """
-        This method creates a user with a specific name, username, email and password.
-        The password is a result from a SHA1 function with the name and salt.
-        """
-        password = "{}{}".format(name, self.salt)
-        password = hashlib.sha1(password).hexdigest()
-        data = {"name": name, "email": email,
-                "password": password, "username": username}
-        return self._request_rocket_chat("post", "users.create", data)
-
-    def add_to_course_group(self, group_name, user_id):
+    def _add_to_course_group(self, group_name, user_id):
         """
         This method add the user to the default course channel
         """
-        rocket_chat_group = self._search_rocket_chat_group(group_name)
+        api = self.api_rocket_chat
+        rocket_chat_group = api.search_rocket_chat_group(group_name)
 
         if rocket_chat_group['success']:
-            self._add_to_group(user_id, rocket_chat_group['group']['_id'])
+            api.add_to_group(user_id, rocket_chat_group['group']['_id'])
         else:
-            rocket_chat_group = self._create_group(group_name, self.user_data["username"])
+            rocket_chat_group = api.create_group(group_name, self.user_data["username"])
 
-        self.group = self._search_rocket_chat_group(  # pylint: disable=attribute-defined-outside-init
+        self.group = api.search_rocket_chat_group(  # pylint: disable=attribute-defined-outside-init
             group_name)
-
-    def _search_rocket_chat_group(self, room_name):
-        """
-        This method gets a group with a specific name and returns a json with group's info
-        """
-        url_path = "{}?{}={}".format("groups.info", "roomName", room_name)
-        return self._request_rocket_chat("get", url_path)
-
-    def _add_to_group(self, user_id, room_id):
-        """
-        This method add any user to any group
-        """
-        url_path = "groups.invite"
-        data = {"roomId": room_id, "userId": user_id}
-        response = self._request_rocket_chat("post", url_path, data)
-        LOG.info("Method Add to Group: %s with this data: %s", response, data)
-        return response
-
-    def _create_group(self, name, username=""):
-        """
-        This method creates a group with a specific name.
-        """
-        url_path = "groups.create"
-        data = {"name": name, "members": [username]}
-        response = self._request_rocket_chat("post", url_path, data)
-        LOG.info("Method Create Group: %s with this data: %s", response, data)
-        return response
-
-    def _request_rocket_chat(self, method, url_path, data=None):
-        """
-        This method generates a call to the RocketChat API and returns a json with the response
-        """
-        headers = {"X-Auth-Token": self.admin_data["auth_token"],
-                   "X-User-Id": self.admin_data["user_id"], "Content-type": "application/json"}
-        url = "{}/{}".format(self.url_api_rocket_chat, url_path)
-        if method == "post":
-            response = requests.post(url=url, json=data, headers=headers)
-        else:
-            response = requests.get(url=url, headers=headers)
-        return response.json()
-
-    def _user_image_url(self):
-        """Returns an image url for the current user"""
-        from openedx_dependencies import get_profile_image_urls_for_user  # pylint: disable=relative-import
-        current_user = User.objects.get(username=self.user_data["username"])
-        profile_image_url = get_profile_image_urls_for_user(current_user)[
-            "full"]
-
-        if profile_image_url.startswith("http"):
-            return profile_image_url
-
-        base_url = settings.LMS_ROOT_URL
-        image_url = "{}{}".format(base_url, profile_image_url)
-        LOG.info("User image url: %s ", image_url)
-        return image_url
-
-    def _set_avatar(self, username):
-        image_url = self._user_image_url()
-        url_path = "users.setAvatar"
-        data = {"username": username, "avatarUrl": image_url}
-        response = self._request_rocket_chat("post", url_path, data)
-        LOG.info("Method set avatar: %s with this data: %s", response, data)
-
-    def _update_user(self, user_id, username, email):
-        """
-        This method allows to update The user data
-        """
-        if email != self.email:
-            url_path = "users.update"
-            data = {"userId": user_id, "data": {"email": email}}
-            response = self._request_rocket_chat("post", url_path, data)
-            LOG.info("Method Update User: %s with this data: %s", response, data)
-            if response["success"]:
-                self.email = email
-        self._set_avatar(username)
-
-    @XBlock.json_handler
-    def create_group(self, data, suffix=""):
-        """
-        This method allows to create a group from studio
-        """
-        # pylint: disable=unused-argument
-
-        group_name = data["groupName"]
-        description = data["description"]
-        topic = data["topic"]
-
-        if group_name == "" or group_name is None:
-            return {"success": False, "error": "Group Name is not valid"}
-
-        group_name = group_name.replace(" ", "_")
-        group = self._create_group(group_name)
-
-        if group["success"]:
-            self.default_channel = group_name
-
-        if "group" in group:
-            group_id = group["group"]["_id"]
-
-            self._set_description(group_id, description)
-            self._set_topic(group_id, topic)
-
-        LOG.info("Method Public Create Group: %s", group)
-        return group
 
     def _add_to_default_group(self, group_name, user_id):
         """
         """
-        group_info = self._search_rocket_chat_group(group_name)
+        api = self.api_rocket_chat
+        group_info = api.search_rocket_chat_group(group_name)
 
         if group_info["success"]:
-            self._add_to_group(user_id, group_info['group']['_id'])
+            api.add_to_group(user_id, group_info['group']['_id'])
             return True
         return False
 
-    def get_groups(self):
+    def _add_to_team_group(self, user_id, username, course_id):
         """
-        This method lists the existing groups
+        Add the user to team's group in rocketChat
         """
-        url_path = "groups.list"
-        method = "get"
-        response = self._request_rocket_chat(method, url_path)
-        list_groups = []
+        team = self._get_team(username, course_id)
+        api = self.api_rocket_chat
 
-        if "groups" in response:
-            for group in response["groups"]:
-                list_groups.append(group["name"])
-
-        return list_groups
-
-    def _private_channel(self, room_name):
-        """
-        This method changes channels from public to private
-        the channel's type is define as t, when t = c is a public channel
-        and when t = p is a private channel
-        """
-        url_search = "{}?{}={}".format("channels.info", "roomName", room_name)
-        channel = self._request_rocket_chat("get", url_search)
-
-        if "channel" in channel and channel["channel"]["t"] == "c":
-            channel_id = channel["channel"]["_id"]
-            url_path = "channels.setType"
-            data = {"roomId": channel_id, "type": "p"}
-            self._request_rocket_chat("post", url_path, data)
-
-    def _set_description(self, group_id, description):
-        """
-        This method allows to set a description's group
-        """
-        if description == "" or description is None:
-            return
-
-        url_path = "groups.setDescription"
-        data = {"roomId": group_id, "description": description}
-        method = "post"
-
-        response = self._request_rocket_chat(method, url_path, data)
-
-        LOG.info("Method Set Description %s with this data: %s", response, data)
-
-    def _set_topic(self, group_id, topic):
-        """
-        This method allows to set a topic's group
-        """
-        if topic == "" or topic is None:
-            return
-
-        url_path = "groups.setTopic"
-        data = {"roomId": group_id, "topic": topic}
-        method = "post"
-
-        response = self._request_rocket_chat(method, url_path, data)
-
-        LOG.info("Method Set Topic: %s with this data: %s", response, data)
-
-    def _teams_is_enabled(self):
-        """
-        This method verifies if teams are available
-        """
-        from openedx_dependencies import modulestore  # pylint: disable=relative-import
-        try:
-            course_id = self.runtime.course_id  # pylint: disable=no-member
-        except AttributeError:
+        if team is None:
             return False
 
-        course = modulestore().get_course(course_id, depth=0)
-        teams_configuration = course.teams_configuration
-        LOG.info("Team is enabled result: %s", teams_configuration)
-        if "topics" in teams_configuration and teams_configuration["topics"]:
-            return True
+        group_name = "-".join(["Team", team["topic_id"], team["name"]])
+        group_info = api.search_rocket_chat_group(group_name)
+        self.team_channel = group_name
 
-        return False
+        if group_info["success"]:
+            response = api.add_to_group(user_id, group_info['group']['_id'])
+            LOG.info("Add to team group response: %s", response)
+            return response["success"]
+
+        response = api.create_group(group_name, username)
+        LOG.info("Add to team group response: %s", response)
+        return response["success"]
 
     def _get_team(self, username, course_id):
         """
@@ -527,34 +326,13 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             return team[0]
         return None
 
-    def _add_to_team_group(self, user_id, username, course_id):
-        """
-        Add the user to team's group in rocketChat
-        """
-        team = self._get_team(username, course_id)
-
-        if team is None:
-            return False
-
-        group_name = "-".join(["Team", team["topic_id"], team["name"]])
-        group_info = self._search_rocket_chat_group(group_name)
-        self.team_channel = group_name
-
-        if group_info["success"]:
-            response = self._add_to_group(user_id, group_info['group']['_id'])
-            LOG.info("Add to team group response: %s", response)
-            return response["success"]
-
-        response = self._create_group(group_name, username)
-        LOG.info("Add to team group response: %s", response)
-        return response["success"]
-
     def _join_groups(self, user_id, user_data):
         """
         This methodd add the user to the diferent channels
         """
         default_channel = self.default_channel
         channel = self.channel
+        api = self.api_rocket_chat
 
         if channel == "Team Discussion" and self._teams_is_enabled():
             self.ui_is_block = self._add_to_team_group(
@@ -565,14 +343,73 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
         else:
             self.ui_is_block = False
-            self.add_to_course_group(user_data["course"], user_id)
+            self._add_to_course_group(user_data["course"], user_id)
 
-        self._update_user(user_id, user_data["username"], user_data["email"])
+        if (user_data["email"]!= self.email):
+            self.email = api.update_user(user_id, user_data["username"], user_data["email"])
 
-    def channels_enabled(self):
+        api.set_avatar(user_data["username"], self._user_image_url())
+
+    def _teams_is_enabled(self):
         """
-        This method returns a list with the channel options
+        This method verifies if teams are available
         """
-        if self._teams_is_enabled():
-            return ["Main View", "Team Discussion", "Specific Channel"]
-        return ["Main View", "Specific Channel"]
+        from openedx_dependencies import modulestore  # pylint: disable=relative-import
+        try:
+            course_id = self.runtime.course_id  # pylint: disable=no-member
+        except AttributeError:
+            return False
+
+        course = modulestore().get_course(course_id, depth=0)
+        teams_configuration = course.teams_configuration
+        LOG.info("Team is enabled result: %s", teams_configuration)
+        if "topics" in teams_configuration and teams_configuration["topics"]:
+            return True
+
+        return False
+
+    def _user_image_url(self):
+        """Returns an image url for the current user"""
+        from openedx_dependencies import get_profile_image_urls_for_user  # pylint: disable=relative-import
+        current_user = User.objects.get(username=self.user_data["username"])
+        profile_image_url = get_profile_image_urls_for_user(current_user)[
+            "full"]
+
+        if profile_image_url.startswith("http"):
+            return profile_image_url
+
+        base_url = settings.LMS_ROOT_URL
+        image_url = "{}{}".format(base_url, profile_image_url)
+        LOG.info("User image url: %s ", image_url)
+        return image_url
+
+    @XBlock.json_handler
+    def create_group(self, data, suffix=""):
+        """
+        This method allows to create a group from studio
+        """
+        # pylint: disable=unused-argument
+
+        api = self.api_rocket_chat
+
+        group_name = data["groupName"]
+        description = data["description"]
+        topic = data["topic"]
+
+        if group_name == "" or group_name is None:
+            return {"success": False, "error": "Group Name is not valid"}
+
+        group_name = group_name.replace(" ", "_")
+        group = api.create_group(group_name)
+
+        if group["success"]:
+            self.default_channel = group_name
+
+        if "group" in group:
+            group_id = group["group"]["_id"]
+
+            api.set_description(group_id, description)
+            api.set_topic(group_id, topic)
+
+        LOG.info("Method Public Create Group: %s", group)
+        return group
