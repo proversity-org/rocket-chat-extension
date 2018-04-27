@@ -2,8 +2,8 @@
 This file contains the class with the necessary methos to use rocketchat
 """
 import hashlib
-import requests
 import logging
+import requests
 
 LOG = logging.getLogger(__name__)
 
@@ -184,7 +184,7 @@ class ApiRocketChat(object):
 
         LOG.info("Method Set Topic: %s with this data: %s", response, data)
 
-    def update_user(self, user_id, username, email):
+    def update_user(self, user_id, email):
         """
         This method allows to update The user data
         """

@@ -1,7 +1,6 @@
 """
 TO-DO: Write a description of what this XBlock is.
 """
-import hashlib
 import logging
 import re
 import pkg_resources
@@ -225,6 +224,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             user_id = response['userId']
 
             self._join_groups(user_id, user_data)
+            self._update_user(user_id, user_data)
 
             if user_data["role"] == "instructor" and self.rocket_chat_role == "user":
                 self.api_rocket_chat.change_role(user_id, "bot")
@@ -321,6 +321,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
         api = ApiTeams(user, password, client_id, client_secret, server_url)
         team = api.get_user_team(course_id, username)
+        print team
         LOG.info("Get Team response: %s", team)
         if team:
             return team[0]
@@ -332,7 +333,6 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         """
         default_channel = self.default_channel
         channel = self.channel
-        api = self.api_rocket_chat
 
         if channel == "Team Discussion" and self._teams_is_enabled():
             self.ui_is_block = self._add_to_team_group(
@@ -344,11 +344,6 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         else:
             self.ui_is_block = False
             self._add_to_course_group(user_data["course"], user_id)
-
-        if (user_data["email"]!= self.email):
-            self.email = api.update_user(user_id, user_data["username"], user_data["email"])
-
-        api.set_avatar(user_data["username"], self._user_image_url())
 
     def _teams_is_enabled(self):
         """
@@ -367,6 +362,15 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             return True
 
         return False
+
+    def _update_user(self, user_id, user_data):
+        """
+        """
+        api = self.api_rocket_chat
+        if user_data["email"] != self.email:
+            self.email = api.update_user(user_id, user_data["email"])
+
+        api.set_avatar(user_data["username"], self._user_image_url())
 
     def _user_image_url(self):
         """Returns an image url for the current user"""
