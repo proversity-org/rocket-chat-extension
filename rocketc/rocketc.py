@@ -2,10 +2,12 @@
 TO-DO: Write a description of what this XBlock is.
 """
 import hashlib
-import re
 import logging
+import re
 import pkg_resources
 import requests
+
+from api_teams import ApiTeams  # pylint: disable=relative-import
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -16,6 +18,7 @@ from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.settings import XBlockWithSettingsMixin
 from xblockutils.studio_editable import StudioEditableXBlockMixin
+
 
 LOADER = ResourceLoader(__name__)
 LOG = logging.getLogger(__name__)
@@ -43,22 +46,34 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
     )
 
     default_channel = String(
-        display_name="Default Channel",
-        default="",
+        display_name="Specific Channel",
         scope=Scope.content,
         help="This field allows to select the channel that would be accesible in the unit",
         values_provider=lambda self: self.get_groups(),
     )
-    default_group_enable = Boolean(
+
+    ui_is_block = Boolean(
         default=False,
         scope=Scope.user_state,
         help="This is the flag for the initial channel",
     )
 
+    channel = String(
+        display_name="Select Channel",
+        default="Main View",
+        scope=Scope.content,
+        help="This field allows to select the channel that would be accesible in the unit",
+        values_provider=lambda self: self.channels_enabled(),
+    )
+
+    team_channel = String(
+        default=None,
+        scope=Scope.user_info,
+    )
     salt = "HarryPotter_and_thePrisoner_of _Azkaban"
 
     # Possible editable fields
-    editable_fields = ('default_channel', )
+    editable_fields = ('channel', 'default_channel')
 
     def resource_string(self, path):
         """Handy helper for getting resources from our kit."""
@@ -80,7 +95,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
         context["response"] = self.init()
         context["user_data"] = self.user_data
-        context["default_group_enable"] = self.default_group_enable
+        context["ui_is_block"] = self.ui_is_block
         context["public_url_service"] = self.server_data["public_url_service"]
 
         frag = Fragment(LOADER.render_template(
@@ -176,10 +191,16 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         user_data = {}
         user_data["email"] = user.emails[0]
         user_data["role"] = runtime.get_user_role()
+        user_data["course_id"] = runtime.course_id
         user_data["course"] = re.sub('[^A-Za-z0-9]+', '', runtime.course_id._to_string()) # pylint: disable=protected-access
         user_data["username"] = user.opt_attrs['edx-platform.username']
         user_data["anonymous_student_id"] = runtime.anonymous_student_id
-        user_data["default_group"] = self.default_channel
+
+        if self.channel == "Team Discussion":
+            user_data["default_group"] = self.team_channel
+        else:
+            user_data["default_group"] = self.default_channel
+
         return user_data
 
     @property
@@ -212,11 +233,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         if response['success']:
             response = response['data']
             user_id = response['userId']
-            self._update_user(user_id, user_data["username"], user_data["email"])
-            self.add_to_course_group(
-                user_data["course"], user_id)
-            self.default_group_enable = self._add_to_default_group(
-                self.default_channel, user_id)
+
+            self._join_groups(user_id, user_data)
+
             if user_data["role"] == "instructor" and self.rocket_chat_role == "user":
                 self.change_role(user_id, "bot")
             return response
@@ -468,3 +487,92 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         response = self._request_rocket_chat(method, url_path, data)
 
         LOG.info("Method Set Topic: %s with this data: %s", response, data)
+
+    def _teams_is_enabled(self):
+        """
+        This method verifies if teams are available
+        """
+        from openedx_dependencies import modulestore  # pylint: disable=relative-import
+        try:
+            course_id = self.runtime.course_id  # pylint: disable=no-member
+        except AttributeError:
+            return False
+
+        course = modulestore().get_course(course_id, depth=0)
+        teams_configuration = course.teams_configuration
+        LOG.info("Team is enabled result: %s", teams_configuration)
+        if "topics" in teams_configuration and teams_configuration["topics"]:
+            return True
+
+        return False
+
+    def _get_team(self, username, course_id):
+        """
+        This method gets the user's team
+        """
+        try:
+            user = self.xblock_settings["username"]
+            password = self.xblock_settings["password"]
+            client_id = self.xblock_settings["client_id"]
+            client_secret = self.xblock_settings["client_secret"]
+        except KeyError:
+            raise
+
+        server_url = settings.LMS_ROOT_URL
+
+        api = ApiTeams(user, password, client_id, client_secret, server_url)
+        team = api.get_user_team(course_id, username)
+        LOG.info("Get Team response: %s", team)
+        if team:
+            return team[0]
+        return None
+
+    def _add_to_team_group(self, user_id, username, course_id):
+        """
+        Add the user to team's group in rocketChat
+        """
+        team = self._get_team(username, course_id)
+
+        if team is None:
+            return False
+
+        group_name = "-".join(["Team", team["topic_id"], team["name"]])
+        group_info = self._search_rocket_chat_group(group_name)
+        self.team_channel = group_name
+
+        if group_info["success"]:
+            response = self._add_to_group(user_id, group_info['group']['_id'])
+            LOG.info("Add to team group response: %s", response)
+            return response["success"]
+
+        response = self._create_group(group_name, username)
+        LOG.info("Add to team group response: %s", response)
+        return response["success"]
+
+    def _join_groups(self, user_id, user_data):
+        """
+        This methodd add the user to the diferent channels
+        """
+        default_channel = self.default_channel
+        channel = self.channel
+
+        if channel == "Team Discussion" and self._teams_is_enabled():
+            self.ui_is_block = self._add_to_team_group(
+                user_id, user_data["username"], user_data["course_id"])
+
+        elif channel == "Specific Channel":
+            self.ui_is_block = self._add_to_default_group(default_channel, user_id)
+
+        else:
+            self.ui_is_block = False
+            self.add_to_course_group(user_data["course"], user_id)
+
+        self._update_user(user_id, user_data["username"], user_data["email"])
+
+    def channels_enabled(self):
+        """
+        This method returns a list with the channel options
+        """
+        if self._teams_is_enabled():
+            return ["Main View", "Team Discussion", "Specific Channel"]
+        return ["Main View", "Specific Channel"]
