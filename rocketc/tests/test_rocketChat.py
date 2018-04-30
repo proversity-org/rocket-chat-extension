@@ -6,6 +6,7 @@ from django.test.utils import override_settings
 from mock import MagicMock, patch, PropertyMock
 from rocketc.rocketc import RocketChatXBlock
 from rocketc.api_rocket_chat import ApiRocketChat
+from rocketc.api_teams import ApiTeams
 
 
 class TestRocketChat(unittest.TestCase):
@@ -56,14 +57,18 @@ class TestRocketChat(unittest.TestCase):
         group_name = "test_group_name"
         user_id = "test_user_id"
 
-        mock_api_rocket.search_rocket_chat_group.return_value = {"success": True, "group": {"_id": "1234"}}
+        mock_api_rocket.search_rocket_chat_group.return_value = {
+            "success": True, "group": {"_id": "1234"}}
 
-        self.assertTrue(self.block._add_user_to_default_group(group_name, user_id))
+        self.assertTrue(
+            self.block._add_user_to_default_group(group_name, user_id))
         mock_api_rocket.add_user_to_group.assert_called_with(user_id, "1234")
 
-        mock_api_rocket.search_rocket_chat_group.return_value = {"success": False}
+        mock_api_rocket.search_rocket_chat_group.return_value = {
+            "success": False}
 
-        self.assertFalse(self.block._add_user_to_default_group(group_name, user_id))
+        self.assertFalse(
+            self.block._add_user_to_default_group(group_name, user_id))
         mock_api_rocket.add_user_to_group.assert_called_with(user_id, "1234")
 
     @patch('rocketc.rocketc.RocketChatXBlock._get_team')
@@ -78,20 +83,24 @@ class TestRocketChat(unittest.TestCase):
 
         mock_get_team.return_value = None
 
-        self.assertFalse(self.block._add_user_to_team_group(user_id, username, course_id))
+        self.assertFalse(self.block._add_user_to_team_group(
+            user_id, username, course_id))
 
         mock_get_team.return_value = {"name": "name", "topic_id": "test"}
-        mock_api_rocket.search_rocket_chat_group.return_value = {"success": True, "group": {"_id": "1234"}}
+        mock_api_rocket.search_rocket_chat_group.return_value = {
+            "success": True, "group": {"_id": "1234"}}
 
         self.block._add_user_to_team_group(user_id, username, course_id)
         self.assertEqual(self.block.team_channel, "Team-test-name")
 
         mock_api_rocket.add_user_to_group.assert_called_with(user_id, "1234")
 
-        mock_api_rocket.search_rocket_chat_group.return_value = {"success": False}
+        mock_api_rocket.search_rocket_chat_group.return_value = {
+            "success": False}
         self.block._add_user_to_team_group(user_id, username, course_id)
 
-        mock_api_rocket.create_group.assert_called_with("Team-test-name", username)
+        mock_api_rocket.create_group.assert_called_with(
+            "Team-test-name", username)
 
     @patch('rocketc.rocketc.RocketChatXBlock._teams_is_enabled')
     def test_channels_enabled(self, mock_team):
@@ -156,7 +165,8 @@ class TestRocketChat(unittest.TestCase):
             mock_update_user.assert_called_with(user_id, user_data)
             mock_api_rocket.change_user_role.assert_called_with(user_id, "bot")
 
-            mock_login.return_value = {"success": False, "errorType": "test_error"}
+            mock_login.return_value = {
+                "success": False, "errorType": "test_error"}
 
             self.assertEqual(self.block.init(), "test_error")
 
@@ -560,3 +570,41 @@ class TestApiRocketChat(unittest.TestCase):
 
         self.assertEqual(new_email, email)
         mock_request.assert_called_with(method, url_path, data)
+
+
+class TestApiTeams(unittest.TestCase):
+    """"""
+
+    def setUp(self):
+        """Set up general variables"""
+        username = "test_user_name"
+        password = "test_password"
+        server_url = "http://test_server"
+        client_secret = "test_client_secret"
+        client_id = "test_client_id"
+
+        with patch('rocketc.api_teams.ApiTeams._get_token') as mock_token:
+            mock_token.return_value = "test_token"
+            self.api = ApiTeams(username, password, client_id, client_secret, server_url)
+
+    @patch('rocketc.api_teams.requests.get')
+    def test_call_api_get(self, mock_request):
+        """Test for the method call api get"""
+        url_path = "test_path"
+        payload = {"data": "data_test"}
+        url = "/".join([self.api.server_url, self.api.API_PATH, url_path])
+
+        self.api._call_api_get(url_path, payload)
+        mock_request.assert_called_with(url, headers=self.api.headers, params=payload)
+
+    # def test_get_user_team(self, course_id, username):
+    #     """Get the user's team"""
+    #     course_id = MagicMock()
+    #     username = "test_user_name"
+    #     url_path = "teams"
+    #     payload = {"course_id": course_id, "username": username}
+    #     team_request = self._call_api_get(url_path, payload)
+
+    #     if team_request.status_code == 200:
+    #         return team_request.json()["results"]
+    #     return team_request.json()

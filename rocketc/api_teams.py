@@ -43,7 +43,7 @@ class ApiTeams(object):  #pylint: disable=too-few-public-methods
 
         return token['access_token']
 
-    def _call_api_get(self, url_path, payload):
+    def _call_api_get(self, url_path, payload=None):
         """This method return the response"""
         url = "/".join([self.server_url, self.API_PATH, url_path])
         return requests.get(url, headers=self.headers, params=payload)

@@ -184,7 +184,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         user_data["username"] = user.opt_attrs['edx-platform.username']
         user_data["anonymous_student_id"] = runtime.anonymous_student_id
 
-        if self.selected_view == "Team Discussion":
+        if self.selected_view == VIEWS[1]:
             user_data["default_group"] = self.team_channel
         else:
             user_data["default_group"] = self.default_channel
@@ -335,11 +335,11 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         """
         default_channel = self.default_channel
 
-        if self.selected_view == "Team Discussion" and self._teams_is_enabled():
+        if self.selected_view == VIEWS[1] and self._teams_is_enabled():
             self.ui_is_block = self._add_user_to_team_group(
                 user_id, user_data["username"], user_data["course_id"])
 
-        elif self.selected_view == "Specific Channel":
+        elif self.selected_view == VIEWS[2]:
             self.ui_is_block = self._add_user_to_default_group(default_channel, user_id)
 
         else:
