@@ -321,7 +321,6 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
         api = ApiTeams(user, password, client_id, client_secret, server_url)
         team = api.get_user_team(course_id, username)
-        print team
         LOG.info("Get Team response: %s", team)
         if team:
             return team[0]
