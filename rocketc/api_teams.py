@@ -29,16 +29,13 @@ class ApiTeams(object):  #pylint: disable=too-few-public-methods
 
     def _get_token(self, server_url):
         """This method get the Authorization token"""
-        client_id = self.client_id
-        client_secret = self.client_secret
-
         oauth = OAuth2Session(
-            client=LegacyApplicationClient(client_id=client_id))
+            client=LegacyApplicationClient(client_id=self.client_id))
         token_url = "/".join([server_url, "oauth2/access_token/"])
 
         token = oauth.fetch_token(token_url=token_url,
-                                  client_id=client_id,
-                                  client_secret=client_secret,
+                                  client_id=self.client_id,
+                                  client_secret=self.client_secret,
                                   username=self.username,
                                   password=self.password)
 
@@ -46,17 +43,17 @@ class ApiTeams(object):  #pylint: disable=too-few-public-methods
 
         return token['access_token']
 
-    def _call_api_get(self, url_path):
+    def _call_api_get(self, url_path, payload):
         """This method return the response"""
         url = "/".join([self.server_url, self.API_PATH, url_path])
-        return requests.get(url, headers=self.headers)
+        return requests.get(url, headers=self.headers, params=payload)
 
     def get_user_team(self, course_id, username):
         """Get the user's team"""
         course_id = course_id.to_deprecated_string().replace("+", "%2B")
-        url_path = "teams/?course_id={}&username={}".format(
-            course_id, username)
-        team_request = self._call_api_get(url_path)
+        url_path = "teams"
+        payload = {"course_id": course_id, "username": username}
+        team_request = self._call_api_get(url_path, payload)
 
         if team_request.status_code == 200:
             return team_request.json()["results"]

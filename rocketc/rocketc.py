@@ -57,7 +57,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         help="This is the flag for the initial channel",
     )
 
-    channel = String(
+    selected_view = String(
         display_name="Select Channel",
         default="Main View",
         scope=Scope.content,
@@ -66,6 +66,8 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
     )
 
     team_channel = ""
+
+    VIEWS = ["Main View", "Team Discussion", "Specific Channel"]
 
     # Possible editable fields
     editable_fields = ('channel', 'default_channel')
@@ -103,7 +105,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
     def author_view(self, context=None):
         """  Returns author view fragment on Studio """
         # pylint: disable=unused-argument
-        self.api_rocket_chat.private_channel("general")
+        self.api_rocket_chat.convert_to_private_channel("general")
         frag = Fragment(u"Studio Runtime RocketChatXBlock")
         frag.add_css(self.resource_string("static/css/rocketc.css"))
         frag.add_javascript(self.resource_string("static/js/src/rocketc.js"))
@@ -182,7 +184,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         user_data["username"] = user.opt_attrs['edx-platform.username']
         user_data["anonymous_student_id"] = runtime.anonymous_student_id
 
-        if self.channel == "Team Discussion":
+        if self.selected_view == "Team Discussion":
             user_data["default_group"] = self.team_channel
         else:
             user_data["default_group"] = self.default_channel
@@ -201,8 +203,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         This method returns a list with the channel options
         """
         if self._teams_is_enabled():
-            return ["Main View", "Team Discussion", "Specific Channel"]
-        return ["Main View", "Specific Channel"]
+            return self.VIEWS
+        self.VIEWS.remove(self.VIEWS[1])
+        return self.VIEWS
 
     def get_groups(self):
         """
@@ -223,11 +226,11 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             response = response['data']
             user_id = response['userId']
 
-            self._join_groups(user_id, user_data)
+            self._join_user_to_groups(user_id, user_data)
             self._update_user(user_id, user_data)
 
             if user_data["role"] == "instructor" and self.rocket_chat_role == "user":
-                self.api_rocket_chat.change_role(user_id, "bot")
+                self.api_rocket_chat.change_user_role(user_id, "bot")
             return response
         else:
             return response['errorType']
@@ -256,7 +259,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
         return data
 
-    def _add_to_course_group(self, group_name, user_id):
+    def _add_user_to_course_group(self, group_name, user_id):
         """
         This method add the user to the default course channel
         """
@@ -264,25 +267,25 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         rocket_chat_group = api.search_rocket_chat_group(group_name)
 
         if rocket_chat_group['success']:
-            api.add_to_group(user_id, rocket_chat_group['group']['_id'])
+            api.add_user_to_group(user_id, rocket_chat_group['group']['_id'])
         else:
             rocket_chat_group = api.create_group(group_name, self.user_data["username"])
 
         self.group = api.search_rocket_chat_group(  # pylint: disable=attribute-defined-outside-init
             group_name)
 
-    def _add_to_default_group(self, group_name, user_id):
+    def _add_user_to_default_group(self, group_name, user_id):
         """
         """
         api = self.api_rocket_chat
         group_info = api.search_rocket_chat_group(group_name)
 
         if group_info["success"]:
-            api.add_to_group(user_id, group_info['group']['_id'])
+            api.add_user_to_group(user_id, group_info['group']['_id'])
             return True
         return False
 
-    def _add_to_team_group(self, user_id, username, course_id):
+    def _add_user_to_team_group(self, user_id, username, course_id):
         """
         Add the user to team's group in rocketChat
         """
@@ -297,7 +300,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         self.team_channel = group_name
 
         if group_info["success"]:
-            response = api.add_to_group(user_id, group_info['group']['_id'])
+            response = api.add_user_to_group(user_id, group_info['group']['_id'])
             LOG.info("Add to team group response: %s", response)
             return response["success"]
 
@@ -326,23 +329,22 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             return team[0]
         return None
 
-    def _join_groups(self, user_id, user_data):
+    def _join_user_to_groups(self, user_id, user_data):
         """
         This methodd add the user to the diferent channels
         """
         default_channel = self.default_channel
-        channel = self.channel
 
-        if channel == "Team Discussion" and self._teams_is_enabled():
-            self.ui_is_block = self._add_to_team_group(
+        if self.selected_view == "Team Discussion" and self._teams_is_enabled():
+            self.ui_is_block = self._add_user_to_team_group(
                 user_id, user_data["username"], user_data["course_id"])
 
-        elif channel == "Specific Channel":
-            self.ui_is_block = self._add_to_default_group(default_channel, user_id)
+        elif self.selected_view == "Specific Channel":
+            self.ui_is_block = self._add_user_to_default_group(default_channel, user_id)
 
         else:
             self.ui_is_block = False
-            self._add_to_course_group(user_data["course"], user_id)
+            self._add_user_to_course_group(user_data["course"], user_id)
 
     def _teams_is_enabled(self):
         """
@@ -364,6 +366,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
     def _update_user(self, user_id, user_data):
         """
+        This method updates the email and photo's profile
         """
         api = self.api_rocket_chat
         if user_data["email"] != self.email:
@@ -411,8 +414,8 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         if "group" in group:
             group_id = group["group"]["_id"]
 
-            api.set_description(group_id, description)
-            api.set_topic(group_id, topic)
+            api.set_group_description(group_id, description)
+            api.set_group_topic(group_id, topic)
 
         LOG.info("Method Public Create Group: %s", group)
         return group

@@ -20,7 +20,7 @@ class ApiRocketChat(object):
         self._login(user, password)
 
     def _login(self, user, password):
-        """"""
+        """This method defines the headers with the authToken and userId"""
         url = "/".join([self.server_url, self.API_PATH, "login"])
         data = {"user": user, "password": password}
         response = requests.post(url=url, json=data, headers=self.headers)
@@ -32,7 +32,7 @@ class ApiRocketChat(object):
             LOG.info("Auth_token: %s, User_id: %s ", self.headers[
                 "X-Auth-Token"], self.headers["X-User-Id"])
 
-    def _request_rocket_chat(self, method, url_path, data=None):
+    def _request_rocket_chat(self, method, url_path, data=None, payload=None):
         """
         This method generates a call to the RocketChat API and returns a json with the response
         """
@@ -41,11 +41,11 @@ class ApiRocketChat(object):
             response = requests.post(url=url, json=data, headers=self.headers)
             LOG.info("Request rocketChat status code = %s", response.status_code)
         else:
-            response = requests.get(url=url, headers=self.headers)
+            response = requests.get(url=url, headers=self.headers, params=payload)
             LOG.info("Request rocketChat status code = %s", response.status_code)
         return response.json()
 
-    def add_to_group(self, user_id, room_id):
+    def add_user_to_group(self, user_id, room_id):
         """
         This method add any user to any group
         """
@@ -55,7 +55,7 @@ class ApiRocketChat(object):
         LOG.info("Method Add to Group: %s with this data: %s", response, data)
         return response
 
-    def change_role(self, user_id, role):
+    def change_user_role(self, user_id, role):
         """
         This method allows to change the user's role
         """
@@ -115,14 +115,15 @@ class ApiRocketChat(object):
 
         return list_groups
 
-    def private_channel(self, room_name):
+    def convert_to_private_channel(self, room_name):
         """
         This method changes channels from public to private
         the channel's type is define as t, when t = c is a public channel
         and when t = p is a private channel
         """
-        url_search = "{}?{}={}".format("channels.info", "roomName", room_name)
-        channel = self._request_rocket_chat("get", url_search)
+        url_path = "channels.info"
+        payload = {"roomName": room_name}
+        channel = self._request_rocket_chat("get", url_path, payload=payload)
 
         if "channel" in channel and channel["channel"]["t"] == "c":
             channel_id = channel["channel"]["_id"]
@@ -134,16 +135,18 @@ class ApiRocketChat(object):
         """
         This method gets a group with a specific name and returns a json with group's info
         """
-        url_path = "{}?{}={}".format("groups.info", "roomName", room_name)
-        return self._request_rocket_chat("get", url_path)
+        url_path = "groups.info"
+        payload = {"roomName": room_name}
+        return self._request_rocket_chat("get", url_path, payload=payload)
 
     def search_rocket_chat_user(self, username):
         """
         This method allows to get a user from RocketChat data base
         """
-        url_path = "{}?{}={}".format("users.info", "username", username)
+        url_path = "users.info"
+        payload = {"username": username}
 
-        return self._request_rocket_chat("get", url_path)
+        return self._request_rocket_chat("get", url_path, payload=payload)
 
     def set_avatar(self, username, image_url):
         """
@@ -154,7 +157,7 @@ class ApiRocketChat(object):
         response = self._request_rocket_chat("post", url_path, data)
         LOG.info("Method set avatar: %s with this data: %s", response, data)
 
-    def set_description(self, group_id, description):
+    def set_group_description(self, group_id, description):
         """
         This method allows to set a description's group
         """
@@ -169,7 +172,7 @@ class ApiRocketChat(object):
 
         LOG.info("Method Set Description %s with this data: %s", response, data)
 
-    def set_topic(self, group_id, topic):
+    def set_group_topic(self, group_id, topic):
         """
         This method allows to set a topic's group
         """
