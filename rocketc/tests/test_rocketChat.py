@@ -102,6 +102,14 @@ class TestRocketChat(unittest.TestCase):
         mock_api_rocket.create_group.assert_called_with(
             "Team-test-name", username)
 
+    def test_api_rocket_chat(self):
+        """
+        Test api rocket chat
+        """
+        with patch('rocketc.rocketc.ApiRocketChat._login'):
+            with patch('rocketc.rocketc.RocketChatXBlock.xblock_settings'):
+                self.assertIsInstance(self.block.api_rocket_chat, ApiRocketChat)
+
     @patch('rocketc.rocketc.RocketChatXBlock._teams_is_enabled')
     def test_channels_enabled(self, mock_team):
         """
@@ -144,6 +152,15 @@ class TestRocketChat(unittest.TestCase):
                          "success": True, "group": {"_id": "1234"}})
 
     @patch('rocketc.rocketc.RocketChatXBlock.api_rocket_chat')
+    def test_get_groups(self, mock_api_rocket):
+        """
+        Test get_groups
+        """
+        mock_api_rocket.get_groups.return_value = ["Team-group", "group1", "group2", "Team-test-group"]
+        groups = self.block.get_groups()
+        self.assertEqual(groups, ["group1", "group2"])
+
+    @patch('rocketc.rocketc.RocketChatXBlock.api_rocket_chat')
     @patch('rocketc.rocketc.RocketChatXBlock._update_user')
     @patch('rocketc.rocketc.RocketChatXBlock._join_user_to_groups')
     @patch('rocketc.rocketc.RocketChatXBlock.login')
@@ -163,7 +180,7 @@ class TestRocketChat(unittest.TestCase):
             self.assertEqual(self.block.init(), data)
             mock_join_user.assert_called_with(user_id, user_data)
             mock_update_user.assert_called_with(user_id, user_data)
-            mock_api_rocket.change_user_role.assert_called_with(user_id, "bot")
+            mock_api_rocket.change_user_role.assert_called_with(user_id, "leader")
 
             mock_login.return_value = {
                 "success": False, "errorType": "test_error"}
@@ -258,6 +275,25 @@ class TestRocketChat(unittest.TestCase):
             user_id, user_data["email"])
         mock_api_rocket.set_avatar.assert_called_with(
             user_data["username"], "test_url")
+
+    def test_user_data(self):
+
+        team_channel = "test-team-channel"
+        default_channel = "test-default-channel"
+        mock_runtime = MagicMock()
+        mock_runtime.course_id._to_string.return_value = "test_course_id"
+        self.block.xmodule_runtime = mock_runtime
+        self.block.selected_view = "Team Discussion"
+        self.block.team_channel = team_channel
+        self.block.default_channel = default_channel
+
+        data = self.block.user_data
+        self.assertEqual(data["default_group"], team_channel)
+
+        self.block.selected_view = "Another Discussion"
+
+        data = self.block.user_data
+        self.assertEqual(data["default_group"], default_channel)
 
     @override_settings(LMS_ROOT_URL="http://127.0.0.1/")
     @patch('rocketc.rocketc.User')
@@ -585,7 +621,8 @@ class TestApiTeams(unittest.TestCase):
 
         with patch('rocketc.api_teams.ApiTeams._get_token') as mock_token:
             mock_token.return_value = "test_token"
-            self.api = ApiTeams(username, password, client_id, client_secret, server_url)
+            self.api = ApiTeams(username, password, client_id,
+                                client_secret, server_url)
 
     @patch('rocketc.api_teams.requests.get')
     def test_call_api_get(self, mock_request):
@@ -595,16 +632,31 @@ class TestApiTeams(unittest.TestCase):
         url = "/".join([self.api.server_url, self.api.API_PATH, url_path])
 
         self.api._call_api_get(url_path, payload)
-        mock_request.assert_called_with(url, headers=self.api.headers, params=payload)
+        mock_request.assert_called_with(
+            url, headers=self.api.headers, params=payload)
 
-    # def test_get_user_team(self, course_id, username):
-    #     """Get the user's team"""
-    #     course_id = MagicMock()
-    #     username = "test_user_name"
-    #     url_path = "teams"
-    #     payload = {"course_id": course_id, "username": username}
-    #     team_request = self._call_api_get(url_path, payload)
+    @patch('rocketc.api_teams.OAuth2Session')
+    def test_get_token(self, mock_oauth):
+        """test get_token """
+        server_url = "test_server"
+        token_url = "/".join([server_url, "oauth2/access_token/"])
+        self.api._get_token(server_url)
+        mock_oauth.return_value.fetch_token.assert_called_with(token_url=token_url,
+                                                               client_id=self.api.client_id,
+                                                               client_secret=self.api.client_secret,
+                                                               username=self.api.username,
+                                                               password=self.api.password)
 
-    #     if team_request.status_code == 200:
-    #         return team_request.json()["results"]
-    #     return team_request.json()
+    @patch('rocketc.api_teams.ApiTeams._call_api_get')
+    def test_get_user_team(self, mock_call):
+        """Get the user's team"""
+        course_id = MagicMock()
+        course_id.to_deprecated_string.return_value = "test_course_id"
+        username = "test_user_name"
+        url_path = "teams"
+        payload = {"course_id": "test_course_id", "username": username}
+
+        mock_call.return_value = MagicMock(status_code=200)
+
+        self.api.get_user_team(course_id, username)
+        mock_call.assert_called_with(url_path, payload)

@@ -184,7 +184,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         user_data["username"] = user.opt_attrs['edx-platform.username']
         user_data["anonymous_student_id"] = runtime.anonymous_student_id
 
-        if self.selected_view == VIEWS[1]:
+        if self.selected_view == self.VIEWS[1]:
             user_data["default_group"] = self.team_channel
         else:
             user_data["default_group"] = self.default_channel
@@ -204,14 +204,19 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         """
         if self._teams_is_enabled():
             return self.VIEWS
-        self.VIEWS.remove(self.VIEWS[1])
-        return self.VIEWS
+        view = list(self.VIEWS)
+        view.remove(self.VIEWS[1])
+        return view
 
     def get_groups(self):
         """
         This method lists the existing groups
         """
-        return self.api_rocket_chat.get_groups()
+        groups = self.api_rocket_chat.get_groups()
+        for group in groups:
+            if group.startswith("Team"):
+                groups.remove(group)
+        return groups
 
     def init(self):
         """
@@ -229,8 +234,8 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             self._join_user_to_groups(user_id, user_data)
             self._update_user(user_id, user_data)
 
-            if user_data["role"] == "instructor" and self.rocket_chat_role == "user":
-                self.api_rocket_chat.change_user_role(user_id, "bot")
+            if user_data["role"] == "instructor" and self.rocket_chat_role != "leader":
+                self.api_rocket_chat.change_user_role(user_id, "leader")
             return response
         else:
             return response['errorType']
@@ -334,12 +339,13 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         This methodd add the user to the diferent channels
         """
         default_channel = self.default_channel
+        print self.VIEWS
 
-        if self.selected_view == VIEWS[1] and self._teams_is_enabled():
+        if self.selected_view == self.VIEWS[1] and self._teams_is_enabled():
             self.ui_is_block = self._add_user_to_team_group(
                 user_id, user_data["username"], user_data["course_id"])
 
-        elif self.selected_view == VIEWS[2]:
+        elif self.selected_view == self.VIEWS[2]:
             self.ui_is_block = self._add_user_to_default_group(default_channel, user_id)
 
         else:
