@@ -50,7 +50,7 @@ class ApiTeams(object):  #pylint: disable=too-few-public-methods
 
     def get_user_team(self, course_id, username):
         """Get the user's team"""
-        course_id = course_id.to_deprecated_string().replace("+", "%2B")
+        course_id = course_id.to_deprecated_string()
         url_path = "teams"
         payload = {"course_id": course_id, "username": username}
         team_request = self._call_api_get(url_path, payload)

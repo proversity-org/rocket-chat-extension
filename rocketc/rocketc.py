@@ -36,7 +36,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         default="Rocket Chat"
     )
     email = String(
-        default="", scope=Scope.user_info,
+        default="", scope=Scope.user_state,
         help="Email in rocketChat",
     )
     rocket_chat_role = String(
@@ -70,7 +70,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
     VIEWS = ["Main View", "Team Discussion", "Specific Channel"]
 
     # Possible editable fields
-    editable_fields = ('channel', 'default_channel')
+    editable_fields = ('selected_view', 'default_channel')
 
     def resource_string(self, path):
         """Handy helper for getting resources from our kit."""
@@ -213,9 +213,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         This method lists the existing groups
         """
         groups = self.api_rocket_chat.get_groups()
-        for group in groups:
-            if group.startswith("Team"):
-                groups.remove(group)
+        groups = [group for group in groups if not group.startswith("Team")]
         return groups
 
     def init(self):
@@ -234,8 +232,8 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             self._join_user_to_groups(user_id, user_data)
             self._update_user(user_id, user_data)
 
-            if user_data["role"] == "instructor" and self.rocket_chat_role != "leader":
-                self.api_rocket_chat.change_user_role(user_id, "leader")
+            if user_data["role"] == "instructor" and self.rocket_chat_role != "bot":
+                self.api_rocket_chat.change_user_role(user_id, "bot")
             return response
         else:
             return response['errorType']
@@ -339,7 +337,6 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         This methodd add the user to the diferent channels
         """
         default_channel = self.default_channel
-        print self.VIEWS
 
         if self.selected_view == self.VIEWS[1] and self._teams_is_enabled():
             self.ui_is_block = self._add_user_to_team_group(

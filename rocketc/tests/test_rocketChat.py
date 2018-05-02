@@ -180,7 +180,7 @@ class TestRocketChat(unittest.TestCase):
             self.assertEqual(self.block.init(), data)
             mock_join_user.assert_called_with(user_id, user_data)
             mock_update_user.assert_called_with(user_id, user_data)
-            mock_api_rocket.change_user_role.assert_called_with(user_id, "leader")
+            mock_api_rocket.change_user_role.assert_called_with(user_id, "bot")
 
             mock_login.return_value = {
                 "success": False, "errorType": "test_error"}
