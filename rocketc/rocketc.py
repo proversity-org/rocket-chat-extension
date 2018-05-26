@@ -297,8 +297,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
         if team is None:
             return False
-
-        group_name = "-".join(["Team", team["topic_id"], team["name"]])
+        topic_id = re.sub(r'\W+', '', team["topic_id"])
+        team_name = re.sub(r'\W+', '', team["name"])
+        group_name = "-".join(["Team", topic_id, team_name])
         group_info = api.search_rocket_chat_group(group_name)
         self.team_channel = group_name
 
