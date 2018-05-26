@@ -4,7 +4,7 @@ import os
 
 from setuptools import setup
 
-__version__ = '0.2.6'
+__version__ = '0.2.7'
 
 
 def package_data(pkg, roots):
