@@ -65,7 +65,11 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         values_provider=lambda self: self.channels_enabled(),
     )
 
-    team_channel = ""
+    team_channel = String(
+        default="",
+        scope=Scope.user_state
+    )
+
 
     VIEWS = ["Main View", "Team Discussion", "Specific Channel"]
 
@@ -296,10 +300,15 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         api = self.api_rocket_chat
 
         if team is None:
+            self._remove_user_from_group(self.team_channel, user_id)
             return False
         topic_id = re.sub(r'\W+', '', team["topic_id"])
         team_name = re.sub(r'\W+', '', team["name"])
         group_name = "-".join(["Team", topic_id, team_name])
+
+        if self.team_channel != group_name:
+            self._remove_user_from_group(self.team_channel, user_id)
+
         group_info = api.search_rocket_chat_group(group_name)
         self.team_channel = group_name
 
@@ -423,3 +432,13 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
         LOG.info("Method Public Create Group: %s", group)
         return group
+
+    def _remove_user_from_group(self, group_name, user_id):
+        """
+        This method removes a user form a team
+        """
+        api = self.api_rocket_chat
+        group = api.search_rocket_chat_group( group_name)
+        if group["success"]:
+            group = group["group"]
+            api.kick_user_from_group(user_id, group["_id"])

@@ -197,3 +197,12 @@ class ApiRocketChat(object):
         LOG.info("Method Update User: %s with this data: %s", response, data)
         if response["success"]:
             return email
+
+    def kick_user_from_group(self, user_id, room_id):
+        """
+        Removes a user from the private group.
+        """
+        url_path = "groups.kick"
+        data = {"roomId": room_id, "userId": user_id}
+        response = self._request_rocket_chat("post", url_path, data)
+        LOG.info("Method Kick user from a Group: %s with this data: %s", response, data)
