@@ -13,7 +13,7 @@
 
         {% elif not team_view %}
 
-            <strong><p>You need to join a team before this will work. Go to the <a href='{% url "teams_dashboard" user_data.course_id %}'>teams page</a> to select a team to join or get in <a href='{% url "support:contact_us" %}'>touch with support.</a></p></strong>
+            <strong><p>You need to join a team before this will work. Go to the <a href="{% url 'teams_dashboard' user_data.course_id %}">teams page</a> to select a team to join or get in <a href="{% url 'support:contact_us' %}">touch with support.</a></p></strong>
 
         {% else %}
 
