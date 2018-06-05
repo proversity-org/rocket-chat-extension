@@ -71,9 +71,10 @@ class TestRocketChat(unittest.TestCase):
             self.block._add_user_to_default_group(group_name, user_id))
         mock_api_rocket.add_user_to_group.assert_called_with(user_id, "1234")
 
+    @patch('rocketc.rocketc.RocketChatXBlock._remove_user_from_group')
     @patch('rocketc.rocketc.RocketChatXBlock._get_team')
     @patch('rocketc.rocketc.RocketChatXBlock.api_rocket_chat')
-    def test_add_user_to_team_group(self, mock_api_rocket, mock_get_team):
+    def test_add_user_to_team_group(self, mock_api_rocket, mock_get_team, mock_remove_user):
         """
         test method add to team group
         """
@@ -82,6 +83,7 @@ class TestRocketChat(unittest.TestCase):
         course_id = "test_course_id"
 
         mock_get_team.return_value = None
+        self.block.team_channel = "test_team_channel"
 
         self.assertFalse(self.block._add_user_to_team_group(
             user_id, username, course_id))
