@@ -70,6 +70,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         scope=Scope.user_state
     )
 
+    team_view = ""
 
     VIEWS = ["Main View", "Team Discussion", "Specific Channel"]
 
@@ -441,7 +442,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         This method removes a user form a team
         """
         api = self.api_rocket_chat
-        group = api.search_rocket_chat_group( group_name)
+        group = api.search_rocket_chat_group(group_name)
         if group["success"]:
             group = group["group"]
             api.kick_user_from_group(user_id, group["_id"])
