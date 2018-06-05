@@ -90,10 +90,13 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         if in_studio_runtime:
             return self.author_view(context)
 
-        context["response"] = self.init()
-        context["user_data"] = self.user_data
-        context["ui_is_block"] = self.ui_is_block
-        context["public_url_service"] = self.server_data["public_url_service"]
+        context = {
+            "response": self.init(),
+            "user_data": self.user_data,
+            "ui_is_block": self.ui_is_block,
+            "team_view": self.team_view,
+            "public_url_service": self.server_data["public_url_service"]
+        }
 
         frag = Fragment(LOADER.render_template(
             'static/html/rocketc.html', context))
@@ -340,7 +343,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         default_channel = self.default_channel
 
         if self.selected_view == self.VIEWS[1] and self._teams_is_enabled():
-            self.ui_is_block = self._add_user_to_team_group(
+            self.team_view = self._add_user_to_team_group(
                 user_id, user_data["username"], user_data["course_id"])
 
         elif self.selected_view == self.VIEWS[2]:
