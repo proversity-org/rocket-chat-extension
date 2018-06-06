@@ -70,7 +70,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         scope=Scope.user_state
     )
 
-    team_view = ""
+    team_view = True
 
     VIEWS = ["Main View", "Team Discussion", "Specific Channel"]
 
@@ -355,6 +355,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         if self.selected_view == self.VIEWS[1] and self._teams_is_enabled():
             self.team_view = self._add_user_to_team_group(
                 user_id, user_data["username"], user_data["course_id"])
+            self.ui_is_block = self.team_view
 
         elif self.selected_view == self.VIEWS[2]:
             self.ui_is_block = self._add_user_to_default_group(default_channel, user_id)
