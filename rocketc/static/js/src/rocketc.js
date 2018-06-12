@@ -7,6 +7,13 @@ function RocketChatXBlock(runtime, element) {
 
     var setDefaultChannel = runtime.handlerUrl(element, "set_default_channel");
 
+    if ( $("body").find(".chromeless")[0]){
+        $("body").append($(".vert-mod"));
+        $("#content").remove();
+        $(".message-xblock").hide();
+        $(".message-team").show();
+    }
+
     $("#button", element).click(function(eventObject) {
         var channel = $("#name", element).val();
         var data = {channel};

@@ -13,7 +13,8 @@
 
         {% elif not team_view %}
 
-            <strong><p>You need to join a team before this will work. Go to the <a href="{% url 'teams_dashboard' user_data.course_id %}">teams page</a> to select a team to join or get in <a href="{% url 'support:contact_us' %}">touch with support.</a></p></strong>
+            <div class="message-team" style="display: none;"><strong><p>You need to join a team before this will work. Go to the <a href="{% url 'teams_dashboard' user_data.course_id %}">teams page</a> to select a team to join or get in <a href="{% url 'support:contact_us' %}">touch with support.</a></p></strong></div>
+            <div class="message-xblock"><strong><p>You must be a team member to view this chat.</p></strong></div>
 
         {% else %}
 
