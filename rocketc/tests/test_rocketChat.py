@@ -47,7 +47,7 @@ class TestRocketChat(unittest.TestCase):
             mock_api_rocket.search_rocket_chat_group.return_value = data
             self.block._add_user_to_course_group(group_name, user_id)
             mock_api_rocket.create_group.assert_called_with(
-                group_name, "test_user_name")
+                group_name, ["test_user_name"])
 
     @patch('rocketc.rocketc.RocketChatXBlock.api_rocket_chat')
     def test_add_user_to_default_group(self, mock_api_rocket):
@@ -102,7 +102,7 @@ class TestRocketChat(unittest.TestCase):
         self.block._add_user_to_team_group(user_id, username, course_id)
 
         mock_api_rocket.create_group.assert_called_with(
-            "Team-test-name", username)
+            "Team-test-name", [username])
 
     def test_api_rocket_chat(self):
         """
@@ -145,6 +145,8 @@ class TestRocketChat(unittest.TestCase):
         mock_request = MagicMock(method="POST", body=json.dumps(data))
         mock_api_rocket.create_group.return_value = {
             "success": True, "group": {"_id": "1234"}}
+
+        self.block.xmodule_runtime = MagicMock()
 
         result = self.block.create_group(mock_request)
 
@@ -372,12 +374,12 @@ class TestApiRocketChat(unittest.TestCase):
         success = {'success': True}
 
         name = "test_name"
-        username = "test_user_name"
+        username = ["test_user_name"]
 
         mock_request.return_value = success
         url_path = "groups.create"
 
-        data = {'name': name, "members": [username]}
+        data = {'name': name, "members": username}
 
         response = self.api.create_group(name, username)
         self.assertEquals(response, success)

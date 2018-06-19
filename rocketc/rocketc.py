@@ -458,7 +458,10 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         return group
 
     def get_team_members(self, username):
-        runtime = self.xmodule_runtime
+        """
+        This method allows to get the members of a team
+        """
+        runtime = self.xmodule_runtime # pylint: disable=no-member
         course_id = runtime.course_id
 
         xblock_settings = self.get_xblock_settings()
