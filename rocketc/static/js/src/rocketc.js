@@ -56,7 +56,6 @@ function RocketChatXBlock(runtime, element) {
     };
 
     function responseLeave(data){
-        debugger;
         if (data["success"]) {
             $("input").val("");
             $(".message").text("You have left the channel").

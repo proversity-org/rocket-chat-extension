@@ -60,7 +60,7 @@ class ApiTeams(object):  #pylint: disable=too-few-public-methods
         return team_request.json()
 
     def get_members(self, team_id):
-        """Get the user's team"""
+        """Get the team members"""
         url_path = "team_membership"
         payload = {"team_id": team_id}
         team_request = self._call_api_get(url_path, payload)
