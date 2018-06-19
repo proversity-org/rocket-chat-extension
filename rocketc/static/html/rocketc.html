@@ -1,5 +1,4 @@
 <div class="rocketc_block">
-    <center>
         {% if ui_is_block and team_view %}
 
             {% if "authToken" in response %}
@@ -7,6 +6,40 @@
                     <iframe style="width:0;height:0;border:0; border:none;" src="{{public_url_service}}/home?authToken={{response.authToken}}&userId={{response.userId}}" >IFrame is not supported</iframe>
                     <iframe id="myframe" src="{{public_url_service}}/group/{{user_data.default_group}}?layout=embedded" >IFrame is not supported</iframe>
                  </div>
+                <div class="tool-buttons">
+                    <div>
+                        <a class="button" id="create-channel">Create New Team Chat</a>
+                        <a class="button" id="leave-channel">Leave Chat</a><br>
+                    </div>
+                    <div class="container-input create">
+                        <form>
+                          <label>Chat Name</label>
+                          <input type="text" id="group-name-create" required></input><br/>
+                          <label>Description</label>
+                          <input type="text" id="group-description"></input><br>
+                          <label>Topic</label>
+                          <input type="text" id="group-topic"></input><br/>
+                        </form><br>
+
+                        <div class="xblock-actions">
+                          <a class="button" id="button-create">Create</a>
+                          <a class="button cancel">Cancel</a>
+                          <p class ="message"></p>
+                        </div>
+                    </div>
+                    <div class="container-input leave">
+                        <form>
+                          <label>Chat Name</label>
+                          <input type="text" id="group-name-leave" required></input>
+                        </form><br>
+                        <div class="xblock-actions">
+                          <a class="button" id="button-leave">Leave</a>
+                          <a class="button cancel">Cancel</a>
+                          <p class="message"></p>
+                        </div>
+                    </div>
+                </div>
+
             {% else %}
                 {{response}}
             {% endif %}
@@ -28,5 +61,4 @@
 
         {% endif %}
 
-    </center>
 </div>

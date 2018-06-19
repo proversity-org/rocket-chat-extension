@@ -280,7 +280,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         if rocket_chat_group['success']:
             api.add_user_to_group(user_id, rocket_chat_group['group']['_id'])
         else:
-            rocket_chat_group = api.create_group(group_name, self.user_data["username"])
+            rocket_chat_group = api.create_group(group_name, [self.user_data["username"]])
 
         self.group = api.search_rocket_chat_group(  # pylint: disable=attribute-defined-outside-init
             group_name)
@@ -321,7 +321,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             LOG.info("Add to team group response: %s", response)
             return response["success"]
 
-        response = api.create_group(group_name, username)
+        response = api.create_group(group_name, [username])
         LOG.info("Add to team group response: %s", response)
         return response["success"]
 
@@ -410,7 +410,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
     @XBlock.json_handler
     def create_group(self, data, suffix=""):
         """
-        This method allows to create a group from studio
+        This method allows to create a group
         """
         # pylint: disable=unused-argument
 
@@ -423,11 +423,19 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         if group_name == "" or group_name is None:
             return {"success": False, "error": "Group Name is not valid"}
 
-        group_name = group_name.replace(" ", "_")
-        group = api.create_group(group_name)
+        in_studio_runtime = hasattr(
+            self.xmodule_runtime, 'is_author_mode')  # pylint: disable=no-member
 
-        if group["success"]:
-            self.default_channel = group_name
+        group_name = group_name.replace(" ", "_")
+
+        if not in_studio_runtime:
+            members = self.get_team_members(self.user_data["username"])
+            members = list(members)
+            group = api.create_group(group_name, members)
+        else:
+            group = api.create_group(group_name)
+            if group["success"]:
+                self.default_channel = group_name
 
         if "group" in group:
             group_id = group["group"]["_id"]
@@ -446,4 +454,54 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         group = api.search_rocket_chat_group(group_name)
         if group["success"]:
             group = group["group"]
-            api.kick_user_from_group(user_id, group["_id"])
+            return api.kick_user_from_group(user_id, group["_id"])
+        return group
+
+    def get_team_members(self, username):
+        runtime = self.xmodule_runtime
+        course_id = runtime.course_id
+
+        xblock_settings = self.get_xblock_settings()
+
+        try:
+            user = xblock_settings["username"]
+            password = xblock_settings["password"]
+            client_id = xblock_settings["client_id"]
+            client_secret = xblock_settings["client_secret"]
+        except KeyError:
+            raise
+
+        server_url = settings.LMS_ROOT_URL
+
+        api = ApiTeams(user, password, client_id, client_secret, server_url)
+        team = api.get_user_team(course_id, username)
+        if team:
+            team = team[0]
+            team_id = team["id"]
+            members = api.get_members(team_id)
+            if members:
+                for member in members:
+                    yield member["user"]["username"]
+
+    @XBlock.json_handler
+    def leave_group(self, data, suffix=""):
+        """
+        This method allows to leave a group
+        """
+        # pylint: disable=unused-argument
+
+        api = self.api_rocket_chat
+        username = self.user_data["username"]
+        user = api.search_rocket_chat_user(username)
+        group_name = data["groupName"]
+
+        if not user["success"]:
+            return {"success": False, "error": "User is not valid"}
+
+        if group_name == "" or group_name is None:
+            return {"success": False, "error": "Group Name is not valid"}
+
+        if group_name == self.team_channel or group_name == self.user_data["course"]:
+            return {"success": False, "error": "You Can Not Leave a Main Group"}
+
+        return self._remove_user_from_group(group_name, user["user"]["_id"])

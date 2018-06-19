@@ -58,3 +58,13 @@ class ApiTeams(object):  #pylint: disable=too-few-public-methods
         if team_request.status_code == 200:
             return team_request.json()["results"]
         return team_request.json()
+
+    def get_members(self, team_id):
+        """Get the user's team"""
+        url_path = "team_membership"
+        payload = {"team_id": team_id}
+        team_request = self._call_api_get(url_path, payload)
+
+        if team_request.status_code == 200:
+            return team_request.json()["results"]
+        return team_request.json()

@@ -23,3 +23,22 @@
     height: 500px;
     border: none;
 }
+
+.container-input{
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 75%;
+    display: none;
+    background-color: #FFF;
+    border-style: outset;
+    padding: 10px
+}
+
+.tool-buttons{
+    display:none;
+}
+
+.container-input input{
+    width: 50%;
+}
