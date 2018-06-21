@@ -512,7 +512,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
     @XBlock.json_handler
     def get_list_of_groups(self, data, suffix=""):
         """Returns a list with the group names"""
-
+        # pylint: disable=unused-argument
         user_id = data["userId"]
         auth_token = data["authToken"]
 
@@ -522,7 +522,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         team_name = team["name"].replace(" ", "_")
 
         regex = "-".join([topic, team_name])
-        query = { "name": { "$regex": regex } }
+        query = {"name": {"$regex": regex}}
         query = json.dumps(query)
 
         groups = list(self._get_list_groups(user_id, auth_token, query))

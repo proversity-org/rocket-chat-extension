@@ -57,7 +57,8 @@ class ApiTeams(object):  #pylint: disable=too-few-public-methods
 
         if team_request.status_code == 200:
             return team_request.json()["results"]
-        LOG.error("An error has ocurred trying to get the user with status code = %s", team_request.status_code)
+        LOG.error("An error has ocurred trying to get the user with status code = %s",
+                  team_request.status_code)
         return None
 
     def get_members(self, team_id):
@@ -68,6 +69,6 @@ class ApiTeams(object):  #pylint: disable=too-few-public-methods
 
         if team_request.status_code == 200:
             return team_request.json()["results"]
-
-        LOG.error("An error has ocurred trying to fetch team members with status code = %s", team_request.status_code)
+        LOG.error("An error has ocurred trying to fetch team members with status code = %s",
+                  team_request.status_code)
         return None
