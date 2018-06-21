@@ -12,7 +12,7 @@ function RocketChatXBlock(runtime, element) {
         $("#content").remove();
         $(".message-xblock").hide();
         $(".message-team").show();
-        $(".tool-buttons").show();
+        $("#tool-buttons").show();
 
         $("#create-channel").click(function(){
             $(".container-input").hide();
@@ -44,6 +44,7 @@ function RocketChatXBlock(runtime, element) {
     });
 
     function responseCreate(data){
+        loadGroups();
         if (data["success"]) {
             $("input").val("");
             $(".message").text("The Chat Has Been Created").
@@ -56,17 +57,19 @@ function RocketChatXBlock(runtime, element) {
     };
 
     function responseLeave(data){
+        loadGroups();
         if (data["success"]) {
             $("input").val("");
             $(".message").text("You have left the channel").
             css("color", "green");
+            $("#select-channel").val($("#tool-buttons").attr("data-default"));
+            $("#select-channel").change();
         }else{
             $(".message").text(data["error"]).
             css("color", "red");
         }
 
-    }
-
+    };
 
     var createGroup = runtime.handlerUrl(element, "create_group");
 
@@ -96,4 +99,29 @@ function RocketChatXBlock(runtime, element) {
         });
     });
 
+    function responseGetGroups(data){
+        $("#select-channel").empty();
+        for (var i in data){
+            var item =  $("<option>"+data[i]+"</option>");
+            $("#select-channel").append(item);
+        };
+        $("#select-channel").change(function(){
+            url = $("#tool-buttons").attr("data-domain") + $("#select-channel").val() +"?layout=embedded";
+            $("#myframe").attr("src", url);
+        });
+    };
+
+    function loadGroups(){
+        data = {"userId": $("#tool-buttons").attr("data-userId"),
+                "authToken": $("#tool-buttons").attr("data-token")};
+        $.ajax({
+            type: "POST",
+            url: getGroups,
+            data: JSON.stringify(data),
+            success: responseGetGroups
+        })
+    };
+
+    var getGroups = runtime.handlerUrl(element, "get_list_of_groups");
+    loadGroups();
 }

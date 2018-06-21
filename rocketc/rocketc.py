@@ -2,6 +2,7 @@
 TO-DO: Write a description of what this XBlock is.
 """
 import logging
+import json
 import re
 import pkg_resources
 
@@ -163,6 +164,27 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         api = ApiRocketChat(user, password, self.server_data["private_url_service"])
 
         LOG.info("Api rocketChat initialize: %s ", api)
+
+        return api
+
+    @property
+    def api_teams(self):
+        """
+        Creates an ApiTeams object
+        """
+        try:
+            user = self.xblock_settings["username"]
+            password = self.xblock_settings["password"]
+            client_id = self.xblock_settings["client_id"]
+            client_secret = self.xblock_settings["client_secret"]
+        except KeyError:
+            raise
+
+        server_url = settings.LMS_ROOT_URL
+
+        api = ApiTeams(user, password, client_id, client_secret, server_url)
+
+        LOG.info("Api Teams initialize: %s ", api)
 
         return api
 
@@ -329,17 +351,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         """
         This method gets the user's team
         """
-        try:
-            user = self.xblock_settings["username"]
-            password = self.xblock_settings["password"]
-            client_id = self.xblock_settings["client_id"]
-            client_secret = self.xblock_settings["client_secret"]
-        except KeyError:
-            raise
-
-        server_url = settings.LMS_ROOT_URL
-
-        api = ApiTeams(user, password, client_id, client_secret, server_url)
+        api = self.api_teams
         team = api.get_user_team(course_id, username)
         LOG.info("Get Team response: %s", team)
         if team:
@@ -429,7 +441,12 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         group_name = group_name.replace(" ", "_")
 
         if not in_studio_runtime:
-            members = self.get_team_members(self.user_data["username"])
+            course_id = self.xmodule_runtime.course_id # pylint: disable=no-member
+            team = self._get_team(self.user_data["username"], course_id)
+            topic = team["topic_id"].replace(" ", "_")
+            team_name = team["name"].replace(" ", "_")
+            group_name = "-".join([topic, team_name, group_name])
+            members = self.get_team_members(team)
             members = list(members)
             group = api.create_group(group_name, members)
         else:
@@ -457,29 +474,12 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             return api.kick_user_from_group(user_id, group["_id"])
         return group
 
-    def get_team_members(self, username):
+    def get_team_members(self, team):
         """
         This method allows to get the members of a team
         """
-        runtime = self.xmodule_runtime # pylint: disable=no-member
-        course_id = runtime.course_id
-
-        xblock_settings = self.get_xblock_settings()
-
-        try:
-            user = xblock_settings["username"]
-            password = xblock_settings["password"]
-            client_id = xblock_settings["client_id"]
-            client_secret = xblock_settings["client_secret"]
-        except KeyError:
-            raise
-
-        server_url = settings.LMS_ROOT_URL
-
-        api = ApiTeams(user, password, client_id, client_secret, server_url)
-        team = api.get_user_team(course_id, username)
+        api = self.api_teams
         if team:
-            team = team[0]
             team_id = team["id"]
             members = api.get_members(team_id)
             if members:
@@ -508,3 +508,33 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             return {"success": False, "error": "You Can Not Leave a Main Group"}
 
         return self._remove_user_from_group(group_name, user["user"]["_id"])
+
+    @XBlock.json_handler
+    def get_list_of_groups(self, data, suffix=""):
+        """Returns a list with the group names"""
+
+        user_id = data["userId"]
+        auth_token = data["authToken"]
+
+        course_id = self.xmodule_runtime.course_id # pylint: disable=no-member
+        team = self._get_team(self.user_data["username"], course_id)
+        topic = team["topic_id"].replace(" ", "_")
+        team_name = team["name"].replace(" ", "_")
+
+        regex = "-".join([topic, team_name])
+        query = { "name": { "$regex": regex } }
+        query = json.dumps(query)
+
+        groups = list(self._get_list_groups(user_id, auth_token, query))
+        return groups
+
+    def _get_list_groups(self, user_id, auth_token, query=""):
+        """
+        This method allows to get a list of group names
+        """
+        api = self.api_rocket_chat
+        groups = api.list_all_groups(user_id, auth_token, query)
+        if groups["success"]:
+            groups = groups["groups"]
+            for group in groups:
+                yield group["name"]
