@@ -66,12 +66,12 @@ class ApiRocketChat(object):
         if response["success"]:
             return role
 
-    def create_group(self, name, username=""):
+    def create_group(self, name, usernames=[""]):
         """
         This method creates a group with a specific name.
         """
         url_path = "groups.create"
-        data = {"name": name, "members": [username]}
+        data = {"name": name, "members": usernames}
         response = self._request_rocket_chat("post", url_path, data)
         LOG.info("Method Create Group: %s with this data: %s", response, data)
         return response
@@ -206,3 +206,16 @@ class ApiRocketChat(object):
         data = {"roomId": room_id, "userId": user_id}
         response = self._request_rocket_chat("post", url_path, data)
         LOG.info("Method Kick user from a Group: %s with this data: %s", response, data)
+        return response
+
+    def list_all_groups(self, user_id, auth_token, query=""):
+        """Get a list of groups"""
+        url_path = "groups.list"
+        payload = {"query": query}
+        url = "/".join([self.server_url, self.API_PATH, url_path])
+
+        headers = {"X-User-Id": user_id, "X-Auth-Token": auth_token}
+
+        response = requests.get(url=url, headers=headers, params=payload)
+        LOG.info("Method list all groups: %s with this data: %s", response, payload)
+        return response.json()
