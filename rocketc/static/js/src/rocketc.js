@@ -50,7 +50,7 @@ function RocketChatXBlock(runtime, element) {
             $(".message").text("The Chat Has Been Created").
             css("color", "green");
         }else{
-            $("#message").text(data["error"]).
+            $(".message").text(data["error"]).
             css("color", "red");
         }
 

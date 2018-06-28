@@ -116,8 +116,6 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         # pylint: disable=unused-argument
         self.api_rocket_chat.convert_to_private_channel("general")
         frag = Fragment(u"Studio Runtime RocketChatXBlock")
-        frag.add_css(self.resource_string("static/css/rocketc.css"))
-        frag.add_javascript(self.resource_string("static/js/src/rocketc.js"))
         frag.initialize_js('RocketChatXBlock')
 
         return frag
@@ -438,13 +436,13 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         in_studio_runtime = hasattr(
             self.xmodule_runtime, 'is_author_mode')  # pylint: disable=no-member
 
-        group_name = group_name.replace(" ", "_")
+        group_name = re.sub(r'\W+', '', group_name)
 
         if not in_studio_runtime:
             course_id = self.xmodule_runtime.course_id # pylint: disable=no-member
             team = self._get_team(self.user_data["username"], course_id)
-            topic = team["topic_id"].replace(" ", "_")
-            team_name = team["name"].replace(" ", "_")
+            topic = re.sub(r'\W+', '', team["topic_id"])
+            team_name = re.sub(r'\W+', '', team["name"])
             group_name = "-".join([topic, team_name, group_name])
             members = self.get_team_members(team)
             members = list(members)
