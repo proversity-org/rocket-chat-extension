@@ -518,8 +518,8 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
         course_id = self.xmodule_runtime.course_id # pylint: disable=no-member
         team = self._get_team(self.user_data["username"], course_id)
-        topic = team["topic_id"].replace(" ", "_")
-        team_name = team["name"].replace(" ", "_")
+        topic = re.sub(r'\W+', '', team["topic_id"])
+        team_name = re.sub(r'\W+', '', team["name"])
 
         regex = "-".join([topic, team_name])
         query = {"name": {"$regex": regex}}
