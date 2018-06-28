@@ -100,10 +100,14 @@ function RocketChatXBlock(runtime, element) {
     });
 
     function responseGetGroups(data){
+        var channel = $("#select-channel").val();
         $("#select-channel").empty();
         for (var i in data){
             var item =  $("<option>"+data[i]+"</option>");
             $("#select-channel").append(item);
+            if(channel == item.val()){
+                $("#select-channel").val(channel);
+            }
         };
         $("#select-channel").change(function(){
             url = $("#tool-buttons").attr("data-domain") + $("#select-channel").val() +"?layout=embedded";
