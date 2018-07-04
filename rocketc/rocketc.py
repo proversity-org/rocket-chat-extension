@@ -84,6 +84,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         data = pkg_resources.resource_string(__name__, path)
         return data.decode("utf8")
 
+    @XBlock.supports('multi_device') # Mark as mobile-friendly
     def student_view(self, context=None):
         """
         The primary view of the RocketChatXBlock, shown to students
