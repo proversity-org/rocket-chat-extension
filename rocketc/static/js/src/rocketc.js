@@ -102,13 +102,18 @@ function RocketChatXBlock(runtime, element) {
     function responseGetGroups(data){
         var channel = $("#select-channel").val();
         $("#select-channel").empty();
+        $("#group-names").empty();
         for (var i in data){
             var item =  $("<option>"+data[i]+"</option>");
             $("#select-channel").append(item);
+            $("#group-names").append($("<option value="+data[i]+">"));
             if(channel == item.val()){
                 $("#select-channel").val(channel);
             }
         };
+        if(channel==null){
+            $("#select-channel").val($("#tool-buttons").attr("data-default"));
+        }
         $("#select-channel").change(function(){
             url = $("#tool-buttons").attr("data-domain") + $("#select-channel").val() +"?layout=embedded";
             $("#myframe").attr("src", url);
