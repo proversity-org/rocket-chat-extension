@@ -7,7 +7,7 @@ function RocketChatXBlock(runtime, element) {
 
     var setDefaultChannel = runtime.handlerUrl(element, "set_default_channel");
 
-    if ( $("body").find(".chromeless")[0]){
+    if ( $("body").find(".chromeless")[0] && !/Android|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)){
         $("body").append($(".vert-mod"));
         $("#content").remove();
         $(".message-xblock").hide();
@@ -121,7 +121,7 @@ function RocketChatXBlock(runtime, element) {
     };
 
     function loadGroups(){
-        data = {"userId": $("#tool-buttons").attr("data-userId"),
+        data = {"userId": $("#tool-buttons").attr("data-user-id"),
                 "authToken": $("#tool-buttons").attr("data-token")};
         $.ajax({
             type: "POST",

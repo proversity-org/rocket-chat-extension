@@ -6,7 +6,7 @@
                     <iframe style="width:0;height:0;border:0; border:none;" src="{{public_url_service}}/home?authToken={{response.authToken}}&userId={{response.userId}}" >IFrame is not supported</iframe>
                     <iframe id="myframe" src="{{public_url_service}}/group/{{user_data.default_group}}?layout=embedded" >IFrame is not supported</iframe>
                  </div>
-                <div id="tool-buttons" data-domain="{{public_url_service}}/group/" data-userId="{{response.userId}}" data-token="{{response.authToken}}" data-default="{{user_data.default_group}}">
+                <div id="tool-buttons" data-domain="{{public_url_service}}/group/" data-user-id="{{response.userId}}" data-token="{{response.authToken}}" data-default="{{user_data.default_group}}">
                     <div>
                         <a class="button" id="create-channel">Create New Team Chat</a>
                         <a class="button" id="leave-channel">Leave Chat</a>
