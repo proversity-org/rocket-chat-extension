@@ -512,8 +512,11 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
     def get_list_of_groups(self, data, suffix=""):
         """Returns a list with the group names"""
         # pylint: disable=unused-argument
-        user_id = data["userId"]
-        auth_token = data["authToken"]
+        try:
+            user_id = data["userId"]
+            auth_token = data["authToken"]
+        except KeyError:
+            return None
 
         course_id = self.xmodule_runtime.course_id # pylint: disable=no-member
         team = self._get_team(self.user_data["username"], course_id)
