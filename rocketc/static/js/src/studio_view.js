@@ -58,6 +58,24 @@ function StudioViewEdit(runtime, element) {
 
     $(function ($) {
 
+        if( $("#xb-field-edit-graded_activity").val() === "0"){
+            $("#xb-field-edit-emoji").parents("li").hide();
+            $("#xb-field-edit-target_reaction").parents("li").hide();
+            $("#xb-field-edit-oldest").parents("li").hide();
+            $("#xb-field-edit-latest").parents("li").hide();
+            $("#xb-field-edit-weight").parents("li").hide();
+            $("#xb-field-edit-count_messages").parents("li").hide();
+        };
+
+        $("#xb-field-edit-graded_activity").change(function(){
+            $("#xb-field-edit-emoji").parents("li").toggle();
+            $("#xb-field-edit-target_reaction").parents("li").toggle();
+            $("#xb-field-edit-oldest").parents("li").toggle();
+            $("#xb-field-edit-latest").parents("li").toggle();
+            $("#xb-field-edit-weight").parents("li").toggle();
+            $("#xb-field-edit-count_messages").parents("li").toggle();
+        });
+
         if( $( "#xb-field-edit-selected_view" ).val() === "Specific Channel"){
             $("#xb-field-edit-default_channel").prop("disabled", false);
         }else{
