@@ -208,10 +208,10 @@ class ApiRocketChat(object):
         LOG.info("Method Kick user from a Group: %s with this data: %s", response, data)
         return response
 
-    def list_all_groups(self, user_id, auth_token, query=""):
+    def list_all_groups(self, user_id, auth_token, **kwargs):
         """Get a list of groups"""
         url_path = "groups.list"
-        payload = {"query": query}
+        payload = kwargs
         url = "/".join([self.server_url, self.API_PATH, url_path])
 
         headers = {"X-User-Id": user_id, "X-Auth-Token": auth_token}

@@ -313,8 +313,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         if response['success']:
             response = response['data']
             user_id = response['userId']
+            auth_token = response['authToken']
 
-            self._join_user_to_groups(user_id, user_data)
+            self._join_user_to_groups(user_id, user_data, auth_token)
             self._update_user(user_id, user_data)
 
             if user_data["role"] == "instructor" and self.rocket_chat_role != "bot":
@@ -375,7 +376,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             return True
         return False
 
-    def _add_user_to_team_group(self, user_id, username, course_id):
+    def _add_user_to_team_group(self, user_id, username, course_id, auth_token):
         """
         Add the user to team's group in rocketChat
         """
@@ -383,14 +384,14 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         api = self.api_rocket_chat
 
         if team is None:
-            self._remove_user_from_group(self.team_channel, user_id)
+            self._remove_user_from_group(self.team_channel, user_id, auth_token)
             return False
         topic_id = re.sub(r'\W+', '', team["topic_id"])
         team_name = re.sub(r'\W+', '', team["name"])
         group_name = "-".join(["Team", topic_id, team_name])
 
         if self.team_channel != group_name:
-            self._remove_user_from_group(self.team_channel, user_id)
+            self._remove_user_from_group(self.team_channel, user_id, auth_token)
 
         group_info = api.search_rocket_chat_group(group_name)
         self.team_channel = group_name
@@ -415,7 +416,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             return team[0]
         return None
 
-    def _join_user_to_groups(self, user_id, user_data):
+    def _join_user_to_groups(self, user_id, user_data, auth_token):
         """
         This methodd add the user to the diferent channels
         """
@@ -423,7 +424,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
         if self.selected_view == self.VIEWS[1] and self._teams_is_enabled():
             self.team_view = self._add_user_to_team_group(
-                user_id, user_data["username"], user_data["course_id"])
+                user_id, user_data["username"], user_data["course_id"], auth_token)
             self.ui_is_block = self.team_view
 
         elif self.selected_view == self.VIEWS[2]:
@@ -520,16 +521,31 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         LOG.info("Method Public Create Group: %s", group)
         return group
 
-    def _remove_user_from_group(self, group_name, user_id):
+    def _remove_user_from_group(self, group_name, user_id, auth_token=None):
         """
         This method removes a user form a team
         """
         api = self.api_rocket_chat
+
+        if group_name.startswith("Team-") and auth_token is not None:
+            regex = group_name.replace('Team-', '', 1)
+            query = {"name": {"$regex": regex}}
+            kwargs = {"query": json.dumps(query)}
+            api = self.api_rocket_chat
+            groups = api.list_all_groups(user_id, auth_token, **kwargs)
+
+            if groups["success"]:
+                groups = groups["groups"]
+                for group in groups:
+                    api.kick_user_from_group(user_id, group["_id"])
+                return True
+
         group = api.search_rocket_chat_group(group_name)
         if group["success"]:
             group = group["group"]
-            return api.kick_user_from_group(user_id, group["_id"])
-        return group
+            response = api.kick_user_from_group(user_id, group["_id"])
+            return response.get('success', False)
+        return False
 
     def get_team_members(self, team):
         """
@@ -584,17 +600,17 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
         regex = "-".join([topic, team_name])
         query = {"name": {"$regex": regex}}
-        query = json.dumps(query)
+        kwargs = {"query": json.dumps(query)}
 
-        groups = list(self._get_list_groups(user_id, auth_token, query))
+        groups = list(self._get_list_groups(user_id, auth_token, **kwargs))
         return groups
 
-    def _get_list_groups(self, user_id, auth_token, query=""):
+    def _get_list_groups(self, user_id, auth_token, **kwargs):
         """
         This method allows to get a list of group names
         """
         api = self.api_rocket_chat
-        groups = api.list_all_groups(user_id, auth_token, query)
+        groups = api.list_all_groups(user_id, auth_token, **kwargs)
         if groups["success"]:
             groups = groups["groups"]
             for group in groups:
