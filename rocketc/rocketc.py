@@ -13,7 +13,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 
 from xblock.core import XBlock
-from xblock.fields import Scope, String, Boolean
+from xblock.fields import Scope, String, Boolean, DateTime, Integer, Float
 from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.settings import XBlockWithSettingsMixin
@@ -71,12 +71,68 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         scope=Scope.user_state
     )
 
+    emoji = String(
+        display_name="Emoji to grade with",
+        default="",
+        scope=Scope.settings,
+        help="Select the emoji which you want to grade",
+    )
+
+    oldest = DateTime(
+        display_name="Date From",
+        default=None,
+        scope=Scope.settings,
+        help="ISO-8601 formatted string representing the start date of this assignment."
+    )
+
+    latest = DateTime(
+        display_name="Date To",
+        default=None,
+        scope=Scope.settings,
+        help="ISO-8601 formatted string representing the due date of this assignment."
+    )
+
+    target_reaction = Integer(
+        display_name="Target Reaction Count",
+        default=5,
+        scope=Scope.settings,
+        help="Target value in order to achieve a defined grade."
+    )
+
+    graded_activity = Boolean(
+        display_name="Graded Activity",
+        default=False,
+        scope=Scope.settings,
+    )
+
+    weight = Float(
+        display_name="Score",
+        help="Defines the number of points each problem is worth. ",
+        values={"min": 0, "step": .1},
+        default=1,
+        scope=Scope.settings
+    )
+
+    grade = Float(
+        scope=Scope.user_state,
+        default=0
+    )
+
+    count_messages = Integer(
+        display_name="Last Messages",
+        default=1000,
+        scope=Scope.settings,
+        help="The amount of messages to retrieve"
+    )
+
+    has_score = True
     team_view = True
 
     VIEWS = ["Main View", "Team Discussion", "Specific Channel"]
 
     # Possible editable fields
-    editable_fields = ('selected_view', 'default_channel')
+    editable_fields = ('selected_view', 'default_channel',
+                       'graded_activity', 'emoji', 'target_reaction', 'oldest', 'latest', 'weight', 'count_messages')
 
     def resource_string(self, path):
         """Handy helper for getting resources from our kit."""
@@ -263,6 +319,8 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
             if user_data["role"] == "instructor" and self.rocket_chat_role != "bot":
                 self.api_rocket_chat.change_user_role(user_id, "bot")
+
+            self._grading_discussions()
             return response
         else:
             return response['errorType']
@@ -541,3 +599,68 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             groups = groups["groups"]
             for group in groups:
                 yield group["name"]
+
+    def _get_user_messages(self, group_name, latest="", oldest="", count=100):
+        """
+        Gets the messages from a user's private group.
+        """
+        api = self.api_rocket_chat
+        rocket_chat_group = api.search_rocket_chat_group(group_name)
+
+        if not rocket_chat_group['success']:
+            return None
+
+        group_id = rocket_chat_group['group']['_id']
+        messages = api.get_groups_history(room_id=group_id, latest=latest,
+                                          oldest=oldest, count=count)
+
+        if not messages["success"]:
+            return None
+
+        return [message for message in messages["messages"]
+                if message["u"]["username"] == self.user_data["username"]]
+
+    def _filter_by_reaction_and_user_role(self, messages, reaction):
+        """
+        Returns generator with filtered messages by a given reaction
+        """
+        for message in messages:
+            if not reaction in message.get("reactions", {}):
+                continue
+            usernames = message["reactions"][reaction]["usernames"]
+
+            for username in usernames:
+                if self._validate_user_role(username):
+                    yield message
+                    break
+
+    def _validate_user_role(self, username):
+        """
+        Returns True if the user is privileged in teams discussions for
+        this course.
+        """
+        from openedx_dependencies import has_discussion_privileges, CourseStaffRole  # pylint: disable=relative-import
+
+        user = User.objects.get(username=username)
+
+        if user.is_staff:
+            return True
+        if CourseStaffRole(self.user_data["course_id"]).has_user(user):
+            return True
+        return False
+
+    def _grading_discussions(self):
+        """
+        This method allows to grade contributions to Rocket.Chat given a reaction.
+        """
+        if not self.graded_activity or self.grade == self.weight:
+            return
+        messages = self._get_user_messages(self.user_data["default_group"],
+                                           self.latest, self.oldest, self.count_messages)
+        messages = list(self._filter_by_reaction_and_user_role(messages, self.emoji))
+        if len(messages) >= self.target_reaction:
+            self.grade = self.weight
+            self.runtime.publish(self, 'grade', {'value': self.grade, 'max_value': self.weight})
+
+    def max_score(self):
+        return self.weight

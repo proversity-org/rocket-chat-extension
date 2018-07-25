@@ -164,11 +164,12 @@ class TestRocketChat(unittest.TestCase):
         groups = self.block.get_groups()
         self.assertEqual(groups, ["group1", "group2"])
 
+    @patch('rocketc.rocketc.RocketChatXBlock._grading_discussions')
     @patch('rocketc.rocketc.RocketChatXBlock.api_rocket_chat')
     @patch('rocketc.rocketc.RocketChatXBlock._update_user')
     @patch('rocketc.rocketc.RocketChatXBlock._join_user_to_groups')
     @patch('rocketc.rocketc.RocketChatXBlock.login')
-    def test_init(self, mock_login, mock_join_user, mock_update_user, mock_api_rocket):
+    def test_init(self, mock_login, mock_join_user, mock_update_user, mock_api_rocket, mock_grading):
         """
         Test the method to initialize the xblock
         """

@@ -219,3 +219,18 @@ class ApiRocketChat(object):
         response = requests.get(url=url, headers=headers, params=payload)
         LOG.info("Method list all groups: %s with this data: %s", response, payload)
         return response.json()
+
+    def get_groups_history(self, room_id, latest="", oldest="", # pylint: disable=too-many-arguments
+                           count=100, inclusive=False, unreads=False):
+        """
+        Retrieves the messages from a private group.
+        """
+        url_path = "groups.history"
+        payload = {"roomId": room_id,
+                   "latest": latest,
+                   "oldest": oldest,
+                   "count": count,
+                   "inclusive": inclusive,
+                   "unreads": unreads,
+                  }
+        return self._request_rocket_chat("get", url_path, payload=payload)

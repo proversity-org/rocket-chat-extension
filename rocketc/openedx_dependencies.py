@@ -5,3 +5,5 @@ OpenEdx dependencies
 # pylint: disable=unused-import
 from openedx.core.djangoapps.user_api.accounts.image_helpers import get_profile_image_urls_for_user
 from xmodule.modulestore.django import modulestore
+from django_comment_client.utils import has_discussion_privileges
+from student.roles import CourseStaffRole
