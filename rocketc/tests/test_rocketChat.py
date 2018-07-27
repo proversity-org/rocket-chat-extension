@@ -81,25 +81,30 @@ class TestRocketChat(unittest.TestCase):
         user_id = "test_user_id"
         username = "test_user_name"
         course_id = "test_course_id"
+        auth_token = "test_auth_token"
 
         mock_get_team.return_value = None
         self.block.team_channel = "test_team_channel"
 
         self.assertFalse(self.block._add_user_to_team_group(
-            user_id, username, course_id))
+            user_id,
+            username,
+            course_id,
+            auth_token)
+        )
 
         mock_get_team.return_value = {"name": "name", "topic_id": "test"}
         mock_api_rocket.search_rocket_chat_group.return_value = {
             "success": True, "group": {"_id": "1234"}}
 
-        self.block._add_user_to_team_group(user_id, username, course_id)
+        self.block._add_user_to_team_group(user_id, username, course_id, auth_token)
         self.assertEqual(self.block.team_channel, "Team-test-name")
 
         mock_api_rocket.add_user_to_group.assert_called_with(user_id, "1234")
 
         mock_api_rocket.search_rocket_chat_group.return_value = {
             "success": False}
-        self.block._add_user_to_team_group(user_id, username, course_id)
+        self.block._add_user_to_team_group(user_id, username, course_id, auth_token)
 
         mock_api_rocket.create_group.assert_called_with(
             "Team-test-name", [username])
@@ -177,13 +182,14 @@ class TestRocketChat(unittest.TestCase):
             user_data = {"role": "instructor"}
             mock_user_data.return_value = user_data
             user_id = "test_user_id"
-            data = {"userId": user_id}
+            auth_token = "test_auth_token"
+            data = {"userId": user_id, "authToken": auth_token}
             response_login = {"success": True, "data": data}
             mock_login.return_value = response_login
             self.block.rocket_chat_role = "user"
 
             self.assertEqual(self.block.init(), data)
-            mock_join_user.assert_called_with(user_id, user_data)
+            mock_join_user.assert_called_with(user_id, user_data, auth_token)
             mock_update_user.assert_called_with(user_id, user_data)
             mock_api_rocket.change_user_role.assert_called_with(user_id, "bot")
 
@@ -244,6 +250,7 @@ class TestRocketChat(unittest.TestCase):
         """
 
         user_id = "test_user_id"
+        auth_token = "test_auth_token"
         user_data = {"course_id": "test_course_id",
                      "username": "test_user_name", "course": "test_course"}
         self.block.default_channel = "test_default_channel"
@@ -251,19 +258,19 @@ class TestRocketChat(unittest.TestCase):
 
         with patch('rocketc.rocketc.RocketChatXBlock._teams_is_enabled', return_value=True):
             with patch('rocketc.rocketc.RocketChatXBlock._add_user_to_team_group', return_value=True):
-                self.block._join_user_to_groups(user_id, user_data)
+                self.block._join_user_to_groups(user_id, user_data, auth_token)
                 self.assertTrue(self.block.ui_is_block)
 
         self.block.selected_view = "Specific Channel"
 
         with patch('rocketc.rocketc.RocketChatXBlock._add_user_to_default_group', return_value=True):
-            self.block._join_user_to_groups(user_id, user_data)
+            self.block._join_user_to_groups(user_id, user_data, auth_token)
             self.assertTrue(self.block.ui_is_block)
 
         self.block.selected_view = ""
 
         with patch('rocketc.rocketc.RocketChatXBlock._add_user_to_course_group'):
-            self.block._join_user_to_groups(user_id, user_data)
+            self.block._join_user_to_groups(user_id, user_data, auth_token)
             self.assertFalse(self.block.ui_is_block)
 
     @patch('rocketc.rocketc.RocketChatXBlock._user_image_url')
@@ -477,8 +484,7 @@ class TestApiRocketChat(unittest.TestCase):
 
         mock_request.return_value = {"channel": {"t": "c", "_id": "1234"}}
         self.api.convert_to_private_channel(room_name)
-
-        mock_request.assert_called_with(method,  url_path, data)
+        mock_request.assert_called_with(method,  url_path,  data)
 
     def test_request_rocket_chat(self):
         """Test for the request rocket chat method """
