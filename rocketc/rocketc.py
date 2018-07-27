@@ -131,8 +131,17 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
     VIEWS = ["Main View", "Team Discussion", "Specific Channel"]
 
     # Possible editable fields
-    editable_fields = ('selected_view', 'default_channel',
-                       'graded_activity', 'emoji', 'target_reaction', 'oldest', 'latest', 'weight', 'count_messages')
+    editable_fields = (
+        'selected_view',
+        'default_channel',
+        'graded_activity',
+        'emoji',
+        'target_reaction',
+        'oldest',
+        'latest',
+        'weight',
+        'count_messages'
+    )
 
     def resource_string(self, path):
         """Handy helper for getting resources from our kit."""
@@ -655,7 +664,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         Returns True if the user is privileged in teams discussions for
         this course.
         """
-        from openedx_dependencies import has_discussion_privileges, CourseStaffRole  # pylint: disable=relative-import
+        from openedx_dependencies import CourseStaffRole  # pylint: disable=relative-import
 
         user = User.objects.get(username=username)
 
