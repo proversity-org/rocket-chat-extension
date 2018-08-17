@@ -9,6 +9,16 @@ function StudioViewEdit(runtime, element) {
         if (data["success"]) {
             $("#message").text("Group Created").
             css("color", "green");
+
+            if ($("#as-team").val()==="true"){
+                var name = "(Team Group)"+ $("#group-name").val();
+            }
+            else{
+                var name = $("#group-name").val();
+            }
+            var option = new Option(name, name, true, true);
+            $("#xb-field-edit-default_channel").append(option);
+
         }else{
             $("#message").text(data["error"]).
             css("color", "red");
@@ -22,7 +32,8 @@ function StudioViewEdit(runtime, element) {
         var groupName = $("#group-name").val();
         var description = $("#group-description").val();
         var topic = $("#group-topic").val();
-        var data = {groupName, description, topic};
+        var asTeam = $("#as-team").val() == "true"? true:false;
+        var data = {groupName, description, topic, asTeam};
         $.ajax({
             type: "POST",
             url: createGroup,
