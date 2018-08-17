@@ -47,7 +47,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
     default_channel = String(
         display_name="Specific Channel",
-        scope=Scope.content,
+        scope=Scope.settings,
         help="This field allows to select the channel that would be accesible in the unit",
         values_provider=lambda self: self.get_groups(),
     )
@@ -536,6 +536,8 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         if data.get("asTeam", False):
             custom_fields = {"customFields": {"specificTeam": group_name}}
             group = self.api_rocket_chat.create_group(group_name, **custom_fields)
+            if group["success"]:
+                self.default_channel = "{}-{}".format('(Team Group)', group_name)
 
         else:
             try:
