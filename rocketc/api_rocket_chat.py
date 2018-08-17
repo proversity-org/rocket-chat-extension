@@ -10,27 +10,31 @@ LOG = logging.getLogger(__name__)
 
 class ApiRocketChat(object):
 
-    headers = {"Content-type": "application/json"}
     API_PATH = 'api/v1'
     salt = "HarryPotter_and_thePrisoner_of _Azkaban"
 
     def __init__(self, user, password, server_url="http://127.0.0.1:3000"):
         """Creates a RocketChat object and does login on the specified server"""
         self.server_url = server_url
+        self.session = requests.Session()
         self._login(user, password)
 
     def _login(self, user, password):
         """This method defines the headers with the authToken and userId"""
+        headers = {"Content-type": "application/json"}
         url = "/".join([self.server_url, self.API_PATH, "login"])
         data = {"user": user, "password": password}
-        response = requests.post(url=url, json=data, headers=self.headers)
+        response = self.session.post(url=url, json=data, headers=headers)
         if response.status_code == 200:
             response = response.json()["data"]
-            self.headers["X-Auth-Token"] = response["authToken"]
-            self.headers["X-User-Id"] = response["userId"]
+            update_headers = {"X-Auth-Token": response["authToken"],
+                              "X-User-Id": response["userId"],
+                             }
+            update_headers.update(headers)
+            self.session.headers.update(update_headers)
 
-            LOG.info("Auth_token: %s, User_id: %s ", self.headers[
-                "X-Auth-Token"], self.headers["X-User-Id"])
+            LOG.info("Auth_token: %s, User_id: %s ", update_headers[
+                "X-Auth-Token"], update_headers["X-User-Id"])
 
     def _request_rocket_chat(self, method, url_path, data=None, payload=None):
         """
@@ -38,11 +42,13 @@ class ApiRocketChat(object):
         """
         url = "/".join([self.server_url, self.API_PATH, url_path])
         if method == "post":
-            response = requests.post(url=url, json=data, headers=self.headers)
-            LOG.info("Request rocketChat status code = %s", response.status_code)
+            response = self.session.post(url=url, json=data)
+            LOG.info("Request rocketChat status code = %s",
+                     response.status_code)
         else:
-            response = requests.get(url=url, headers=self.headers, params=payload)
-            LOG.info("Request rocketChat status code = %s", response.status_code)
+            response = self.session.get(url=url, params=payload)
+            LOG.info("Request rocketChat status code = %s",
+                     response.status_code)
         return response.json()
 
     def add_user_to_group(self, user_id, room_id):
@@ -66,12 +72,13 @@ class ApiRocketChat(object):
         if response["success"]:
             return role
 
-    def create_group(self, name, usernames=[""]):
+    def create_group(self, name, usernames=[""], **kwargs):
         """
         This method creates a group with a specific name.
         """
         url_path = "groups.create"
         data = {"name": name, "members": usernames}
+        data.update(kwargs)
         response = self._request_rocket_chat("post", url_path, data)
         LOG.info("Method Create Group: %s with this data: %s", response, data)
         return response
@@ -100,13 +107,14 @@ class ApiRocketChat(object):
         LOG.info("Method Create User: %s with this data: %s", response, data)
         return response
 
-    def get_groups(self):
+    def get_groups(self, **kwargs):
         """
         This method lists the existing groups
         """
         url_path = "groups.list"
         method = "get"
-        response = self._request_rocket_chat(method, url_path)
+        payload = kwargs
+        response = self._request_rocket_chat(method, url_path, payload=payload)
         list_groups = []
 
         if "groups" in response:
@@ -205,7 +213,8 @@ class ApiRocketChat(object):
         url_path = "groups.kick"
         data = {"roomId": room_id, "userId": user_id}
         response = self._request_rocket_chat("post", url_path, data)
-        LOG.info("Method Kick user from a Group: %s with this data: %s", response, data)
+        LOG.info(
+            "Method Kick user from a Group: %s with this data: %s", response, data)
         return response
 
     def list_all_groups(self, user_id, auth_token, **kwargs):
@@ -217,10 +226,11 @@ class ApiRocketChat(object):
         headers = {"X-User-Id": user_id, "X-Auth-Token": auth_token}
 
         response = requests.get(url=url, headers=headers, params=payload)
-        LOG.info("Method list all groups: %s with this data: %s", response, payload)
+        LOG.info("Method list all groups: %s with this data: %s",
+                 response, payload)
         return response.json()
 
-    def get_groups_history(self, room_id, latest="", oldest="", # pylint: disable=too-many-arguments
+    def get_groups_history(self, room_id, latest="", oldest="",  # pylint: disable=too-many-arguments
                            count=100, inclusive=False, unreads=False):
         """
         Retrieves the messages from a private group.
@@ -234,3 +244,15 @@ class ApiRocketChat(object):
                    "unreads": unreads,
                   }
         return self._request_rocket_chat("get", url_path, payload=payload)
+
+    def set_custom_fields(self, room_id, custom_fields):
+        """
+        Sets the custom fields for the private group.
+        This receives the room id and a dict with the custom fields
+        """
+        url_path = "groups.setCustomFields"
+        data = {"roomId": room_id, "customFields": custom_fields}
+        method = "post"
+        response = self._request_rocket_chat(method, url_path, data)
+        LOG.info("Method set_custom_fields: %s with this data: %s", response, data)
+        return response
