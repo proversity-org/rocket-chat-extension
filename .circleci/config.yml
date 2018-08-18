@@ -1,0 +1,14 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/python:2.7
+
+    working_directory: ~/rocket-chat-extension
+    steps:
+      - checkout  
+      - run:
+          name: Tests
+          command: |
+            tox
+            bash <(curl -s https://codecov.io/bash)
