@@ -314,7 +314,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         # This instruction adds the string "(Team Group)" if the group is in team_groups
         # pylint: disable=line-too-long
         groups = ['{}-{}'.format('(Team Group)', group) if group in team_groups else group for group in groups]
-
+        groups.append("")
         return sorted(groups)
 
     def init(self):
@@ -437,7 +437,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             self.ui_is_block = self.team_view
             return self.team_channel
 
-        elif self.selected_view == self.VIEWS[2]:
+        elif self.selected_view == self.VIEWS[2] and default_channel:
             if default_channel.startswith("(Team Group)"):
                 return self._join_user_to_specific_team_group(user_id, user_data, default_channel)
 

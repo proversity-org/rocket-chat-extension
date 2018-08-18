@@ -16,7 +16,7 @@ function StudioViewEdit(runtime, element) {
             else{
                 var name = $("#group-name").val();
             }
-            var option = new Option(name, name, true, true);
+            var option = new Option(name, name, false, false);
             $("#xb-field-edit-default_channel").append(option);
 
         }else{
