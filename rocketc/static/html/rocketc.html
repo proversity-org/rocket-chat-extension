@@ -1,39 +1,42 @@
+{% load i18n %}
+{% url 'teams_dashboard' user_data.course_id as teams_page%}
+{% url 'support:contact_us' as support %}
 <div class="rocketc_block">
         {% if ui_is_block and team_view %}
 
             {% if "authToken" in response %}
                 <div class="embed-container">
-                    <iframe style="width:0;height:0;border:0; border:none;" src="{{public_url_service}}/home?authToken={{response.authToken}}&userId={{response.userId}}" >IFrame is not supported</iframe>
-                    <iframe id="myframe" src="{{public_url_service}}/group/{{response.default_group}}?layout=embedded" >IFrame is not supported</iframe>
+                    <iframe style="width:0;height:0;border:0; border:none;" src="{{public_url_service}}/home?authToken={{response.authToken}}&userId={{response.userId}}" >{% trans "IFrame is not supported" %}" %}</iframe>
+                    <iframe id="myframe" src="{{public_url_service}}/group/{{user_data.default_group}}?layout=embedded" >{% trans "IFrame is not supported" %}</iframe>
                  </div>
                 <div id="tool-buttons" data-domain="{{public_url_service}}/group/" data-user-id="{{response.userId}}" data-token="{{response.authToken}}" data-default="{{response.default_group}}">
                     <div>
-                        <a class="button" id="create-channel">Create New Team Chat</a>
-                        <a class="button" id="leave-channel">Leave Chat</a>
+                        <a class="button" id="create-channel">{% trans "Create New Team Chat" %}</a>
+                        <a class="button" id="leave-channel">{% trans "Leave Chat" %}</a>
                         <select id="select-channel"></select><br>
                     </div>
                     <div class="container-input create">
                         <form>
-                          <label>Chat Name</label>
-                          <input type="text" id="group-name-create" required></input><br/>
-                          <label>Description</label>
-                          <input type="text" id="group-description"></input><br>
-                          <label>Topic</label>
-                          <input type="text" id="group-topic"></input><br/>
+                          <label>{% trans "Chat Name" %}</label>
+                          <input type="text" id="group-name-create" required><br/>
+                          <label>{% trans "Description" %}</label>
+                          <input type="text" id="group-description"><br>
+                          <label>{% trans "Topic" %}</label>
+                          <input type="text" id="group-topic"><br/>
                         </form><br>
 
                         <div class="xblock-actions">
-                          <a class="button" id="button-create">Create</a>
-                          <a class="button cancel">Cancel</a>
+                          <a class="button" id="button-create">{% trans "Create" %}</a>
+                          <a class="button cancel">{% trans "Cancel" %}</a>
                           <p class ="message"></p>
                         </div>
                     </div>
                     <div class="container-input leave">
-                        <label>Full Chat Name </label><br>
+                        <label>{% trans "Full Chat Name" %}</label><br>
                         <input list="group-names" id="group-name-leave" placeholder="Full Chat Name Here"><datalist id="group-names"></datalist><br>
                         <div class="xblock-actions">
-                          <a class="button" id="button-leave">Leave</a>
-                          <a class="button cancel">Cancel</a>
+                          <a class="button" id="button-leave">{% trans "Leave" %}</a>
+                          <a class="button cancel">{% trans "Cancel" %}</a>
                           <p class="message"></p>
                         </div>
                     </div>
@@ -45,14 +48,19 @@
 
         {% elif not team_view %}
 
-            <div class="message-team" style="display: none;"><strong><p>You need to join a team before this will work. Go to the <a href="{% url 'teams_dashboard' user_data.course_id %}">teams page</a> to select a team to join or get in <a href="{% url 'support:contact_us' %}">touch with support.</a></p></strong></div>
-            <div class="message-xblock"><strong><p>You must be a team member to view this chat.</p></strong></div>
+            <div class="message-team" style="display: none;">
+              <strong><p>
+              {% blocktrans %}
+              You need to join a team before this will work. Go to the <a href={{teams_page}}>teams page</a> to select a team to join or get in touch with <a href={{support}}>support</a>.
+              {% endblocktrans %}
+              </p></strong></div>
+            <div class="message-xblock"><strong><p>{% trans "You must be a team member to view this chat." %}</p></strong></div>
 
         {% else %}
 
             {% if "authToken" in response %}
         		<div class="embed-container">
-            		<iframe id="myframe" src="{{public_url_service}}/home?authToken={{response.authToken}}&userId={{response.userId}}" >IFrame is not supported</iframe>
+            		<iframe id="myframe" src="{{public_url_service}}/home?authToken={{response.authToken}}&userId={{response.userId}}" >{% trans "IFrame is not supported" %}</iframe>
         		</div>
             {% else %}
                 {{response}}

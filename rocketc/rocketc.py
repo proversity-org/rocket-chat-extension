@@ -11,6 +11,7 @@ from api_rocket_chat import ApiRocketChat  # pylint: disable=relative-import
 
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.utils.translation import ugettext_lazy as _
 
 from xblock.core import XBlock
 from xblock.fields import Scope, String, Boolean, DateTime, Integer, Float
@@ -32,7 +33,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
     and set the necessary variables to config the rocketChat enviroment
     """
     display_name = String(
-        display_name="Display Name",
+        display_name=_("Display Name"),
         scope=Scope.settings,
         default="Rocket Chat"
     )
@@ -46,9 +47,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
     )
 
     default_channel = String(
-        display_name="Specific Channel",
-        scope=Scope.settings,
-        help="This field allows to select the channel that would be accesible in the unit",
+        display_name=_("Specific Channel"),
+        scope=Scope.content,
+        help=_("This field allows to select the channel that would be accesible in the unit"),
         values_provider=lambda self: self.get_groups(),
     )
 
@@ -59,10 +60,10 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
     )
 
     selected_view = String(
-        display_name="Select Channel",
-        default="Main View",
+        display_name=_("Select Channel"),
+        default=_("Main View"),
         scope=Scope.content,
-        help="This field allows to select the channel that would be accesible in the unit",
+        help=_("This field allows to select the channel that would be accesible in the unit"),
         values_provider=lambda self: self.channels_enabled(),
     )
 
@@ -72,42 +73,42 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
     )
 
     emoji = String(
-        display_name="Emoji to grade with",
+        display_name=_("Emoji to grade with"),
         default="",
         scope=Scope.settings,
-        help="Select the emoji which you want to grade",
+        help=_("Select the emoji which you want to grade"),
     )
 
     oldest = DateTime(
-        display_name="Date From",
+        display_name=_("Date From"),
         default=None,
         scope=Scope.settings,
-        help="ISO-8601 formatted string representing the start date of this assignment."
+        help=_("ISO-8601 formatted string representing the start date of this assignment.")
     )
 
     latest = DateTime(
-        display_name="Date To",
+        display_name=_("Date To"),
         default=None,
         scope=Scope.settings,
-        help="ISO-8601 formatted string representing the due date of this assignment."
+        help=_("ISO-8601 formatted string representing the due date of this assignment.")
     )
 
     target_reaction = Integer(
-        display_name="Target Reaction Count",
+        display_name=_("Target Reaction Count"),
         default=5,
         scope=Scope.settings,
-        help="Target value in order to achieve a defined grade."
+        help=_("Target value in order to achieve a defined grade.")
     )
 
     graded_activity = Boolean(
-        display_name="Graded Activity",
+        display_name=_("Graded Activity"),
         default=False,
         scope=Scope.settings,
     )
 
     weight = Float(
-        display_name="Score",
-        help="Defines the number of points each problem is worth. ",
+        display_name=_("Score"),
+        help=_("Defines the number of points each problem is worth. "),
         values={"min": 0, "step": .1},
         default=1,
         scope=Scope.settings
@@ -119,10 +120,10 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
     )
 
     count_messages = Integer(
-        display_name="Last Messages",
+        display_name=_("Last Messages"),
         default=1000,
         scope=Scope.settings,
-        help="The amount of messages to retrieve"
+        help=_("The amount of messages to retrieve")
     )
 
     has_score = True
