@@ -175,7 +175,7 @@ class TestRocketChat(unittest.TestCase):
         """
         mock_api_rocket.return_value.get_groups.side_effect = [["Team-group", "group1", "group2"], ["Team-group"]]
         groups = self.block.get_groups()
-        self.assertEqual(groups, ["(Team Group)-Team-group", "group1", "group2"])
+        self.assertEqual(groups, ["", "(Team Group)-Team-group", "group1", "group2"])
 
     @patch('rocketc.rocketc.RocketChatXBlock._grading_discussions')
     @patch('rocketc.rocketc.RocketChatXBlock._update_user')
