@@ -7,7 +7,7 @@
             {% if "authToken" in response %}
                 <div class="embed-container">
                     <iframe style="width:0;height:0;border:0; border:none;" src="{{public_url_service}}/home?authToken={{response.authToken}}&userId={{response.userId}}" >{% trans "IFrame is not supported" %}" %}</iframe>
-                    <iframe id="myframe" src="{{public_url_service}}/group/{{user_data.default_group}}?layout=embedded" >{% trans "IFrame is not supported" %}</iframe>
+                    <iframe id="myframe" src="{{public_url_service}}/group/{{response.default_group}}?layout=embedded" allow="camera; microphone">{% trans "IFrame is not supported" %}</iframe>
                  </div>
                 <div id="tool-buttons" data-domain="{{public_url_service}}/group/" data-user-id="{{response.userId}}" data-token="{{response.authToken}}" data-default="{{response.default_group}}">
                     <div>
@@ -60,7 +60,7 @@
 
             {% if "authToken" in response %}
         		<div class="embed-container">
-            		<iframe id="myframe" src="{{public_url_service}}/home?authToken={{response.authToken}}&userId={{response.userId}}" >{% trans "IFrame is not supported" %}</iframe>
+            		<iframe id="myframe" src="{{public_url_service}}/home?authToken={{response.authToken}}&userId={{response.userId}}" allow="camera; microphone">{% trans "IFrame is not supported" %}</iframe>
         		</div>
             {% else %}
                 {{response}}
