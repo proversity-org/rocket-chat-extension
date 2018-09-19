@@ -6,6 +6,7 @@ function RocketChatXBlock(runtime, element) {
     });
 
     var setDefaultChannel = runtime.handlerUrl(element, "set_default_channel");
+    var getGroups = runtime.handlerUrl(element, "get_list_of_groups");
 
     if ( $("body").find(".chromeless")[0] && !/Android|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)){
         $("body").append($(".vert-mod"));
@@ -31,6 +32,7 @@ function RocketChatXBlock(runtime, element) {
             $(".message").text("");
             $(".container-input").hide();
         });
+        loadGroups();
     }
 
     $("#button", element).click(function(eventObject) {
@@ -131,6 +133,4 @@ function RocketChatXBlock(runtime, element) {
         })
     };
 
-    var getGroups = runtime.handlerUrl(element, "get_list_of_groups");
-    loadGroups();
 }
