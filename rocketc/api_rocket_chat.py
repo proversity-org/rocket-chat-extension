@@ -256,3 +256,14 @@ class ApiRocketChat(object):
         response = self._request_rocket_chat(method, url_path, data)
         LOG.info("Method set_custom_fields: %s with this data: %s", response, data)
         return response
+
+    def logout_user(self, user_id, login_token):
+        """
+        This method allows to logout an user
+        """
+        url_path = "logout"
+        headers = {"X-Auth-Token": login_token, "X-User-Id": user_id}
+        url = "/".join([self.server_url, self.API_PATH, url_path])
+        response = requests.get(url=url, headers=headers)
+        LOG.info("Method logout User: %s ", response)
+        return response
