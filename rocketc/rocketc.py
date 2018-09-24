@@ -277,7 +277,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         user_data["email"] = user.emails[0]
         user_data["role"] = runtime.get_user_role()
         user_data["course_id"] = runtime.course_id
-        user_data["course"] = re.sub('[^A-Za-z0-9]+', '', runtime.course_id._to_string()) # pylint: disable=protected-access
+        user_data["course"] = re.sub('[^A-Za-z0-9]+', '', runtime.course_id.to_deprecated_string()) # pylint: disable=protected-access
         user_data["username"] = user.opt_attrs['edx-platform.username']
         user_data["anonymous_student_id"] = runtime.anonymous_student_id
         return user_data
