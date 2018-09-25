@@ -5,6 +5,7 @@ import logging
 import json
 import re
 import pkg_resources
+import hashlib
 
 from api_teams import ApiTeams  # pylint: disable=relative-import
 from api_rocket_chat import ApiRocketChat  # pylint: disable=relative-import
@@ -12,6 +13,8 @@ from api_rocket_chat import ApiRocketChat  # pylint: disable=relative-import
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
+from django.core.cache import cache
+from webob.response import Response
 
 from xblock.core import XBlock
 from xblock.fields import Scope, String, Boolean, DateTime, Integer, Float
@@ -23,6 +26,8 @@ from xblockutils.studio_editable import StudioEditableXBlockMixin
 
 LOADER = ResourceLoader(__name__)
 LOG = logging.getLogger(__name__)
+ROCKET_CHAT_DATA = "rocket_chat_data"
+CACHE_TIMEOUT = 86400
 
 
 @XBlock.wants("user")  # pylint: disable=too-many-ancestors, too-many-instance-attributes
@@ -168,7 +173,8 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             "user_data": self.user_data,
             "ui_is_block": self.ui_is_block,
             "team_view": self.team_view,
-            "public_url_service": self.server_data["public_url_service"]
+            "public_url_service": self.server_data["public_url_service"],
+            "key": hashlib.sha1("{}_{}".format(ROCKET_CHAT_DATA, self.user_data["username"])).hexdigest()
         }
 
         frag = Fragment(LOADER.render_template(
@@ -271,7 +277,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         user_data["email"] = user.emails[0]
         user_data["role"] = runtime.get_user_role()
         user_data["course_id"] = runtime.course_id
-        user_data["course"] = re.sub('[^A-Za-z0-9]+', '', runtime.course_id._to_string()) # pylint: disable=protected-access
+        user_data["course"] = re.sub('[^A-Za-z0-9]+', '', runtime.course_id.to_deprecated_string()) # pylint: disable=protected-access
         user_data["username"] = user.opt_attrs['edx-platform.username']
         user_data["anonymous_student_id"] = runtime.anonymous_student_id
         return user_data
@@ -353,9 +359,13 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         rocket_chat_user = api.search_rocket_chat_user(user_data["username"])
         LOG.info("Login method: result search user: %s", rocket_chat_user["success"])
 
-        if rocket_chat_user['success']:
-            data = api.create_token(user_data["username"])
+        key = hashlib.sha1("{}_{}".format(ROCKET_CHAT_DATA, user_data["username"])).hexdigest()
+        data = cache.get(key)
 
+        if data:
+            return data
+        elif rocket_chat_user['success']:
+            data = api.create_token(user_data["username"])
         else:
             response = api.create_user(user_data["anonymous_student_id"], user_data[
                 "email"], user_data["username"])
@@ -364,7 +374,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             data = api.create_token(user_data["username"])
 
         LOG.info("Login method: result create token: %s", data)
-
+        cache.set(key, data, CACHE_TIMEOUT)
         return data
 
     def _add_user_to_course_group(self, group_name, user_id):
@@ -730,3 +740,27 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
     def max_score(self):
         return self.weight
+
+    @XBlock.handler
+    def logout_user(self, request=None, suffix=None):
+        """
+        This method allows to invalidate the user token
+        """
+        # pylint: disable=unused-argument
+        key = request.GET.get("beacon_rc")
+        data = cache.get(key)
+        if data:
+            api = self._api_rocket_chat()
+            user_data = data.get("data")
+            login_token = user_data.get("authToken")
+            user_id = user_data.get("userId")
+            response = api.logout_user(user_id, login_token)
+            try:
+                response = response.json()
+                if response.get("status") == "success":
+                    cache.delete(key)
+                    return Response(status=202)
+            except AttributeError:
+                return Response(status=503)
+
+        return Response(status=404)

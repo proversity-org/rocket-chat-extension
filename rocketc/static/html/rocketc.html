@@ -5,9 +5,8 @@
         {% if ui_is_block and team_view %}
 
             {% if "authToken" in response %}
-                <div class="embed-container">
-                    <iframe style="width:0;height:0;border:0; border:none;" src="{{public_url_service}}/home?authToken={{response.authToken}}&userId={{response.userId}}" >{% trans "IFrame is not supported" %}" %}</iframe>
-                    <iframe id="myframe" src="{{public_url_service}}/group/{{response.default_group}}?layout=embedded" allow="camera; microphone">{% trans "IFrame is not supported" %}</iframe>
+                <div class="embed-container" data-beacon-rc="{{key}}">
+                    <iframe id="myframe" src="{{public_url_service}}/group/{{response.default_group}}?layout=embedded&authToken={{response.authToken}}&userId={{response.userId}}" allow="camera; microphone">{% trans "IFrame is not supported" %}</iframe>
                  </div>
                 <div id="tool-buttons" data-domain="{{public_url_service}}/group/" data-user-id="{{response.userId}}" data-token="{{response.authToken}}" data-default="{{response.default_group}}">
                     <div>
@@ -59,7 +58,7 @@
         {% else %}
 
             {% if "authToken" in response %}
-        		<div class="embed-container">
+        		<div class="embed-container" data-beacon-rc="{{key}}">
             		<iframe id="myframe" src="{{public_url_service}}/home?authToken={{response.authToken}}&userId={{response.userId}}" allow="camera; microphone">{% trans "IFrame is not supported" %}</iframe>
         		</div>
             {% else %}

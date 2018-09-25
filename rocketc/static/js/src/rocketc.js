@@ -3,6 +3,22 @@ function RocketChatXBlock(runtime, element) {
 
     $(function ($) {
         /* Here's where you'd do things on page load. */
+        $( document ).ajaxStop(function() {
+            var beacon_rc = localStorage.getItem("beacon_rc");
+            var beacon = $(".rocketc_block .embed-container").attr("data-beacon-rc");
+            if (beacon_rc != null && beacon_rc != beacon) {
+                var  logoutUser= runtime.handlerUrl(element, "logout_user");
+                var data = {"key": beacon_rc};
+                $.ajax({
+                    type: "GET",
+                    url: logoutUser,
+                    data: {beacon_rc},
+                });
+                localStorage.setItem("beacon_rc", beacon);
+            } else {
+                localStorage.setItem("beacon_rc", beacon);
+            }
+        });
     });
 
     var setDefaultChannel = runtime.handlerUrl(element, "set_default_channel");
