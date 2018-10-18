@@ -51,8 +51,8 @@ function RocketChatXBlock(runtime, element) {
         loadGroups();
     } else {
         $("#myframe").on("load", function() {
-            $('#myframe').hide();
-            setTimeout(function(){ $('#myframe').show(); }, 2000);
+            $("#myframe").hide();
+            setTimeout(function(){ $("#myframe").show(); }, 2000);
         });
     }
 
