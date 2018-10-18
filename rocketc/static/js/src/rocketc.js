@@ -49,6 +49,11 @@ function RocketChatXBlock(runtime, element) {
             $(".container-input").hide();
         });
         loadGroups();
+    } else {
+        $("#myframe").on("load", function() {
+            $("#myframe").hide();
+            setTimeout(function(){ $("#myframe").show(); }, 2000);
+        });
     }
 
     $("#button", element).click(function(eventObject) {
