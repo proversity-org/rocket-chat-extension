@@ -51,9 +51,15 @@ function RocketChatXBlock(runtime, element) {
         loadGroups();
     } else {
         $("#myframe").on("load", function() {
-            $("#myframe").hide();
-            setTimeout(function(){ $("#myframe").show(); }, 2000);
+            if (!isScrolledIntoView($(".rocketc_block"))) {
+                $("#myframe").hide();
+            }
         });
+        window.onscroll = function() {
+          if (isScrolledIntoView($(".rocketc_block"))) {
+            $("#myframe").show();
+          }
+        };
     }
 
     $("#button", element).click(function(eventObject) {
@@ -152,6 +158,16 @@ function RocketChatXBlock(runtime, element) {
             data: JSON.stringify(data),
             success: responseGetGroups
         })
+    };
+
+    function isScrolledIntoView(elem){
+        var docViewTop = $(window).scrollTop();
+        var docViewBottom = docViewTop + $(window).height();
+
+        var elemTop = $(elem).offset().top;
+        var elemBottom = elemTop + $(elem).height();
+
+        return ((elemBottom <= docViewBottom) && (elemTop >= docViewTop));
     };
 
 }
