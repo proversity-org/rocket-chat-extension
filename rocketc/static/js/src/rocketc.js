@@ -6,7 +6,7 @@ function RocketChatXBlock(runtime, element) {
         $( document ).ajaxStop(function() {
             var beacon_rc = localStorage.getItem("beacon_rc");
             var beacon = $(".rocketc_block .embed-container").attr("data-beacon-rc");
-            if (beacon_rc != null && beacon_rc != beacon) {
+            if (beacon_rc != null && beacon_rc != beacon && beacon != null) {
                 var  logoutUser= runtime.handlerUrl(element, "logout_user");
                 var data = {"key": beacon_rc};
                 $.ajax({
@@ -15,7 +15,7 @@ function RocketChatXBlock(runtime, element) {
                     data: {beacon_rc},
                 });
                 localStorage.setItem("beacon_rc", beacon);
-            } else {
+            } else if (beacon != null) {
                 localStorage.setItem("beacon_rc", beacon);
             }
         });
