@@ -131,7 +131,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         help=_("The amount of messages to retrieve")
     )
 
-    has_score = True
+    has_score = graded_activity
     team_view = True
 
     VIEWS = ["Main View", "Team Discussion", "Specific Channel"]
