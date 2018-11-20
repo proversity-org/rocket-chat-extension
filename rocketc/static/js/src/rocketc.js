@@ -161,6 +161,9 @@ function RocketChatXBlock(runtime, element) {
     };
 
     function isScrolledIntoView(elem){
+        if (elem[0]==null){
+            return false;
+        }
         var docViewTop = $(window).scrollTop();
         var docViewBottom = docViewTop + $(window).height();
 
