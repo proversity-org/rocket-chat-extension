@@ -309,7 +309,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
         # the following instructions get all the groups
         # except the groups with the string of some topic in its name
-        query = {'name': {'$regex': '^(?!.*({topics}).*$)'.format(topics='|'.join(topics))}}
+        query = {'name': {'$regex': '^(?!.*({topics}).*$)'.format(topics='|'.join(topics))}} if topics else {}
         kwargs = {"query": json.dumps(query)}
         groups = self._api_rocket_chat().get_groups(**kwargs)
 
