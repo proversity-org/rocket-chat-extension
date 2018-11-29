@@ -74,7 +74,7 @@ function StudioViewEdit(runtime, element) {
             $("#xb-field-edit-target_reaction").parents("li").hide();
             $("#xb-field-edit-oldest").parents("li").hide();
             $("#xb-field-edit-latest").parents("li").hide();
-            $("#xb-field-edit-weight").parents("li").hide();
+            $("#xb-field-edit-points").parents("li").hide();
             $("#xb-field-edit-count_messages").parents("li").hide();
         };
 
@@ -83,7 +83,7 @@ function StudioViewEdit(runtime, element) {
             $("#xb-field-edit-target_reaction").parents("li").toggle();
             $("#xb-field-edit-oldest").parents("li").toggle();
             $("#xb-field-edit-latest").parents("li").toggle();
-            $("#xb-field-edit-weight").parents("li").toggle();
+            $("#xb-field-edit-points").parents("li").toggle();
             $("#xb-field-edit-count_messages").parents("li").toggle();
         });
 
