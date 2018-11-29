@@ -111,7 +111,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         scope=Scope.settings,
     )
 
-    weight = Float(
+    points = Float(
         display_name=_("Score"),
         help=_("Defines the number of points each problem is worth. "),
         values={"min": 0, "step": .1},
@@ -145,7 +145,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         'target_reaction',
         'oldest',
         'latest',
-        'weight',
+        'points',
         'count_messages'
     )
 
@@ -729,17 +729,18 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         """
         This method allows to grade contributions to Rocket.Chat given a reaction.
         """
-        if not self.graded_activity or self.grade == self.weight:
+        if not self.graded_activity or self.grade == self.points:
             return
         messages = self._get_user_messages(graded_group,
                                            self.latest, self.oldest, self.count_messages)
         messages = list(self._filter_by_reaction_and_user_role(messages, self.emoji))
         if len(messages) >= self.target_reaction:
-            self.grade = self.weight
-            self.runtime.publish(self, 'grade', {'value': self.grade, 'max_value': self.weight})
+            self.grade = self.points
+            self.runtime.publish(self, 'grade', {'value': self.grade, 'max_value': self.points})
 
     def max_score(self):
-        return self.weight
+        if self.graded_activity:
+            return self.points
 
     @XBlock.handler
     def logout_user(self, request=None, suffix=None):
