@@ -7,3 +7,4 @@ requests-oauthlib==0.8.0
 git+https://github.com/edx/XBlock.git@xblock-1.1.1#egg=XBlock==1.1.1
 git+https://github.com/edx/xblock-utils@v1.0.5#egg=xblock-utils==1.0.5
 git+https://github.com/edx/opaque-keys@0.3.1#egg=opaque-keys==0.3.1
+git+https://github.com/jadolg/rocketchat_API.git@0.6.21#egg=rocketchat-API==0.6.21
