@@ -4,8 +4,8 @@ TO-DO: Write a description of what this XBlock is.
 import logging
 import json
 import re
-import pkg_resources
 import hashlib
+import pkg_resources
 
 from api_teams import ApiTeams  # pylint: disable=relative-import
 from api_rocket_chat import ApiRocketChat  # pylint: disable=relative-import
@@ -189,6 +189,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         # pylint: disable=unused-argument
         self.api_rocket_chat.convert_to_private_channel("general")
         frag = Fragment(u"Studio Runtime RocketChatXBlock")
+        frag.add_javascript(self.resource_string("static/js/src/rocketc.js"))
         frag.initialize_js('RocketChatXBlock')
 
         return frag
@@ -585,6 +586,8 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         """
         This method removes a user form a team
         """
+        if not group_name:
+            return False
         api = self.api_rocket_chat
 
         if group_name.startswith("Team-") and auth_token is not None:
