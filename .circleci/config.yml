@@ -6,9 +6,9 @@ jobs:
 
     working_directory: ~/rocket-chat-extension
     steps:
-      - checkout  
+      - checkout
       - run:
           name: Tests
           command: |
-            tox
+            pip install tox && tox
             bash <(curl -s https://codecov.io/bash)

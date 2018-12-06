@@ -7,6 +7,7 @@ from mock import MagicMock, patch, PropertyMock
 from rocketc.rocketc import RocketChatXBlock
 from rocketc.api_rocket_chat import ApiRocketChat
 from rocketc.api_teams import ApiTeams
+from django.core.cache import cache
 
 
 class TestRocketChat(unittest.TestCase):
@@ -112,7 +113,7 @@ class TestRocketChat(unittest.TestCase):
         """
         Test api rocket chat
         """
-        with patch('rocketc.rocketc.ApiRocketChat._login'):
+        with patch('rocketc.rocketc.ApiRocketChat.login'):
             with patch('rocketc.rocketc.RocketChatXBlock.xblock_settings'):
                 self.assertIsInstance(self.block._api_rocket_chat(), ApiRocketChat)
 
@@ -161,7 +162,7 @@ class TestRocketChat(unittest.TestCase):
                          "success": True, "group": {"_id": "1234"}})
 
         self.block.xmodule_runtime = MagicMock()
-        self.block.xmodule_runtime.course_id._to_string.return_value = "test_course_id"
+        self.block.xmodule_runtime.course_id.to_deprecated_string.return_value = "test_course_id"
         result = self.block.create_group(mock_request)
         mock_api_rocket.return_value.create_group.assert_called_with(data["groupName"], [])
         self.assertEqual(json.loads(result.body), {
@@ -223,7 +224,7 @@ class TestRocketChat(unittest.TestCase):
         success['success'] = False
 
         self.block.api_rocket_chat.search_rocket_chat_user.return_value = success
-
+        cache.clear()
         result_else = self.block.login(test_data)
         self.block.api_rocket_chat.create_user.assert_called_with(test_data["anonymous_student_id"], test_data[
             "email"], test_data["username"])
@@ -297,7 +298,7 @@ class TestRocketChat(unittest.TestCase):
     def test_user_data(self):
 
         mock_runtime = MagicMock()
-        mock_runtime.course_id._to_string.return_value = "test_course_id"
+        mock_runtime.course_id.to_deprecated_string.return_value = "test_course_id"
         self.block.xmodule_runtime = mock_runtime
 
         data = self.block.user_data
@@ -330,86 +331,68 @@ class TestApiRocketChat(unittest.TestCase):
         user = "test_user"
         password = "test_password"
         server_url = "http://test_server"
-        data = {"authToken": "test_token", "userId": "test_id"}
 
-        with patch('rocketc.api_rocket_chat.requests.Session'):
+        with patch('rocketc.api_rocket_chat.RocketChat.login'):
             self.api = ApiRocketChat(user, password, server_url)
 
-    @patch('rocketc.api_rocket_chat.ApiRocketChat._request_rocket_chat')
+    @patch('rocketc.api_rocket_chat.ApiRocketChat.groups_invite')
     def test_add_user_to_group(self, mock_request):
         """Test for the add group method"""
-        method = "post"
         success = {'success': True}
 
         user_id = "test_user_id"
         room_id = "test_room_id"
 
-        mock_request.return_value = success
-        url_path = "groups.invite"
-
-        data = {"roomId": room_id, "userId": user_id}
+        mock_request.return_value = MagicMock(status_code=200, json=lambda: success)
 
         response = self.api.add_user_to_group(user_id, room_id)
-        mock_request.assert_called_with(method, url_path, data)
+        mock_request.assert_called_with(room_id, user_id)
         self.assertTrue(response['success'])
 
-    @patch('rocketc.api_rocket_chat.ApiRocketChat._request_rocket_chat')
+    @patch('rocketc.api_rocket_chat.ApiRocketChat.users_update')
     def test_change_user_role(self, mock_request):
         """Test for chage role method"""
-        method = "post"
         success = {'success': True}
 
         user_id = "test_user_id"
         role = "test_role"
 
-        mock_request.return_value = success
-        url_path = "users.update"
+        mock_request.return_value = MagicMock(status_code=200, json=lambda: success)
 
-        data = {"userId": user_id, "data": {"roles": [role]}}
+        user_role = self.api.change_user_role(user_id, role)
+        mock_request.assert_called_with(user_id, data={"roles": [role]})
+        self.assertEqual(role, user_role)
 
-        self.api.change_user_role(user_id, role)
-        mock_request.assert_called_with(method, url_path, data)
-
-    @patch('rocketc.api_rocket_chat.ApiRocketChat._request_rocket_chat')
+    @patch('rocketc.api_rocket_chat.ApiRocketChat.groups_create')
     def test_create_group(self, mock_request):
         """Test for the create group method"""
-        method = "post"
         success = {'success': True}
 
         name = "test_name"
         username = ["test_user_name"]
 
-        mock_request.return_value = success
-        url_path = "groups.create"
-
-        data = {'name': name, "members": username}
+        mock_request.return_value = MagicMock(status_code=200, json=lambda: success)
 
         response = self.api.create_group(name, username)
         self.assertEquals(response, success)
-        mock_request.assert_called_with(method, url_path, data)
+        mock_request.assert_called_with(name, members=username)
 
-    @patch('rocketc.api_rocket_chat.ApiRocketChat._request_rocket_chat')
+    @patch('rocketc.api_rocket_chat.ApiRocketChat.users_create_token')
     def test_create_token(self, mock_request):
         """Test for the create token method"""
-        method = "post"
         success = {'success': True}
-
         username = "test_user_name"
 
-        mock_request.return_value = success
-        url_path = "users.createToken"
-
-        data = {'username': username}
+        mock_request.return_value = MagicMock(status_code=200, json=lambda: success)
 
         response = self.api.create_token(username)
 
-        mock_request.assert_called_with(method, url_path, data)
+        mock_request.assert_called_with(username=username)
         self.assertTrue(response['success'])
 
-    @patch('rocketc.api_rocket_chat.ApiRocketChat._request_rocket_chat')
+    @patch('rocketc.api_rocket_chat.ApiRocketChat.users_create')
     def test_create_user(self, mock_request):
         """Test for the create user method"""
-        method = "post"
         success = {'success': True}
 
         email = "test_email"
@@ -417,145 +400,79 @@ class TestApiRocketChat(unittest.TestCase):
         name = "test_name"
         salt = "HarryPotter_and_thePrisoner_of _Azkaban"
 
-        mock_request.return_value = success
-        url_path = "users.create"
+        mock_request.return_value = MagicMock(status_code=200, json=lambda: success)
 
         password = "{}{}".format(name, salt)
         password = hashlib.sha1(password).hexdigest()
-        data = {"name": name, "email": email,
-                "password": password, "username": username}
-
         response = self.api.create_user(name, email, username)
-
-        mock_request.assert_called_with(method, url_path, data)
+        mock_request.assert_called_with(email, name, password, username)
         self.assertTrue(response['success'])
 
-    @patch('rocketc.api_rocket_chat.ApiRocketChat._request_rocket_chat')
+    @patch('rocketc.api_rocket_chat.ApiRocketChat.groups_list_all')
     def test_get_groups(self, mock_request):
         """Test the method to get a group list"""
-        method = "get"
-        url_path = "groups.list"
-
         groups = {"groups": [{"name": "group1"}]}
-        mock_request.return_value = groups
 
+        mock_request.return_value = MagicMock(status_code=200, json=lambda: groups)
         return_value = self.api.get_groups()
 
-        mock_request.assert_called_with(method, url_path, payload={})
+        mock_request.assert_called_with(**{})
         self.assertIn("group1", return_value)
 
-        mock_request.return_value = {}
+        mock_request.return_value = MagicMock(status_code=200)
 
         return_value = self.api.get_groups()
 
         self.assertFalse(return_value)
 
-    @patch('rocketc.api_rocket_chat.requests.post')
-    def test_login(self, mock_request):
-        """"""
-        user = "test_user"
-        password = "test_password"
-        url = "/".join([self.api.server_url, self.api.API_PATH, "login"])
-        data = {"user": user, "password": password}
-        headers = {"Content-type": "application/json"}
-
-        mock_session = MagicMock()
-        mock_session.post.return_value = MagicMock(status_code=200)
-        mock_session.post.return_value.json.return_value = {
-            "data": {"authToken": "test_token", "userId": "test_id"}}
-
-        self.api.session = mock_session
-
-        self.api._login(user, password)
-
-        mock_session.post.assert_called_with(
-            url=url, json=data, headers=headers)
-        headers["X-Auth-Token"] = "test_token"
-        headers["X-User-Id"] = "test_id"
-        self.api.session.headers.update.assert_called_with(headers)
-
-    @patch('rocketc.api_rocket_chat.ApiRocketChat._request_rocket_chat')
-    def test_convert_to_private_channel(self, mock_request):
+    @patch('rocketc.api_rocket_chat.ApiRocketChat.channels_info')
+    @patch('rocketc.api_rocket_chat.ApiRocketChat.channels_set_type')
+    def test_convert_to_private_channel(self, mock_channels_set_type, mock_channels_info):
         """Test for private channel method"""
-        method = "post"
         room_name = "test_room_name"
-        url_path = "channels.setType"
-        data = {"roomId": "1234", "type": "p"}
 
-        mock_request.return_value = {"channel": {"t": "c", "_id": "1234"}}
+        mock_channels_info.return_value = MagicMock(
+            status_code=200,
+            json=lambda: {"channel": {"t": "c", "_id": "1234"}}
+        )
+
         self.api.convert_to_private_channel(room_name)
-        mock_request.assert_called_with(method, url_path, data)
+        mock_channels_set_type.assert_called_with("1234", "p")
 
-    def test_request_rocket_chat(self):
-        """Test for the request rocket chat method """
-        users = [{
-            "user": {
-                "_id": "BsNr28znDkG8aeo7W",
-                "createdAt": "2016-09-13T14:57:56.037Z",
-            },
-            "success": "true",
-        }]
-
-        info = [{
-            "success": "true",
-            "info": {
-                "version": "0.47.0-develop"
-            }
-        }]
-
-        self.api.session.post.return_value.json.return_value = users
-        data_post = self.api._request_rocket_chat("post", "users.create")
-
-        self.api.session.get.return_value.json.return_value = info
-        data_get = self.api._request_rocket_chat("get", "info")
-
-        self.assertEqual(data_post, users)
-        self.assertEqual(data_get, info)
-
-    @patch('rocketc.api_rocket_chat.ApiRocketChat._request_rocket_chat')
+    @patch('rocketc.api_rocket_chat.ApiRocketChat.groups_info')
     def test_search_rocket_chat_group(self, mock_request):
         """Test for the search group method"""
-        method = "get"
         success = {'success': True}
         room_name = "test_room_name"
-        mock_request.return_value = success
-        url_path = "groups.info"
-        payload = {"roomName": room_name}
+        mock_request.return_value = MagicMock(status_code=200, json=lambda: success)
 
         response = self.api.search_rocket_chat_group(room_name)
 
-        mock_request.assert_called_with(method, url_path, payload=payload)
+        mock_request.assert_called_with(room_name=room_name)
         self.assertTrue(response['success'])
 
-    @patch('rocketc.api_rocket_chat.ApiRocketChat._request_rocket_chat')
+    @patch('rocketc.api_rocket_chat.ApiRocketChat.users_info')
     def test_search_rocket_chat_user(self, mock_request):
         """Test for the search user method"""
-        method = "get"
         success = {'success': True}
         username = "test_user_name"
-        mock_request.return_value = success
-        url_path = "users.info"
-        payload = {"username": username}
+        mock_request.return_value = MagicMock(status_code=200, json=lambda: success)
 
         response = self.api.search_rocket_chat_user(username)
 
-        mock_request.assert_called_with(method, url_path, payload=payload)
+        mock_request.assert_called_with(username=username)
         self.assertTrue(response['success'])
 
-    @patch('rocketc.api_rocket_chat.ApiRocketChat._request_rocket_chat')
+    @patch('rocketc.api_rocket_chat.ApiRocketChat.users_set_avatar')
     def test_set_avatar(self, mock_request):
         """Test the method for set the avatar in RocketChat"""
-        method = "post"
         username = "test_user_name"
         url = "test_url"
-
-        url_path = "users.setAvatar"
-
-        data = {"username": username, "avatarUrl": url}
+        mock_request.return_value = MagicMock(status_code=200, json=lambda: {'success': True})
         self.api.set_avatar(username, url)
-        mock_request.assert_called_with(method, url_path, data)
+        mock_request.assert_called_with(url, username=username, avatarUrl=url)
 
-    @patch('rocketc.api_rocket_chat.ApiRocketChat._request_rocket_chat')
+    @patch('rocketc.api_rocket_chat.ApiRocketChat.groups_set_description')
     def test_set_group_description(self, mock_request):
         """
         This method tests the method set_description
@@ -568,15 +485,11 @@ class TestApiRocketChat(unittest.TestCase):
         self.assertIsNone(return_none)
 
         description = "test_description"
-
-        url_path = "groups.setDescription"
-        data = {"roomId": group_id, "description": description}
-        method = "post"
-
+        mock_request.return_value = MagicMock(status_code=200, json=lambda: {'success': True})
         self.api.set_group_description(group_id, description)
-        mock_request.assert_called_with(method, url_path, data)
+        mock_request.assert_called_with(group_id, description)
 
-    @patch('rocketc.api_rocket_chat.ApiRocketChat._request_rocket_chat')
+    @patch('rocketc.api_rocket_chat.ApiRocketChat.groups_set_topic')
     def test_set_group_topic(self, mock_request):
         """
         This method test the method set_topic
@@ -589,32 +502,24 @@ class TestApiRocketChat(unittest.TestCase):
         self.assertIsNone(return_none)
 
         topic = "test_topic"
-
-        url_path = "groups.setTopic"
-        data = {"roomId": group_id, "topic": topic}
-        method = "post"
-
+        mock_request.return_value = MagicMock(status_code=200, json=lambda: {'success': True})
         self.api.set_group_topic(group_id, topic)
-        mock_request.assert_called_with(method, url_path, data)
+        mock_request.assert_called_with(group_id, topic)
 
-    @patch('rocketc.api_rocket_chat.ApiRocketChat._request_rocket_chat')
+    @patch('rocketc.api_rocket_chat.ApiRocketChat.users_update')
     def test_update_user(self, mock_request):
         """Test the method to update the profile user"""
-        method = "post"
         success = {'success': True}
 
         user_id = "test_user_id"
         email = "test_email"
 
-        mock_request.return_value = success
-        url_path = "users.update"
-
-        data = {"userId": user_id, "data": {"email": email}}
+        mock_request.return_value = MagicMock(status_code=200, json=lambda: success)
 
         new_email = self.api.update_user(user_id, email)
 
         self.assertEqual(new_email, email)
-        mock_request.assert_called_with(method, url_path, data)
+        mock_request.assert_called_with(user_id, data={"email": email})
 
 
 class TestApiTeams(unittest.TestCase):
