@@ -147,7 +147,7 @@ class ApiRocketChat(RocketChat):
         """Get a list of groups"""
         url_path = "groups.list"
         payload = kwargs
-        url = "/".join([self.server_url, self.API_path, url_path])
+        url = "{}{}{}".format(self.server_url, self.API_path, url_path)
 
         headers = {"X-User-Id": user_id, "X-Auth-Token": auth_token}
 
@@ -183,6 +183,6 @@ class ApiRocketChat(RocketChat):
         """
         url_path = "logout"
         headers = {"X-Auth-Token": login_token, "X-User-Id": user_id}
-        url = "{}/{}/{}".format(self.server_url, self.API_path, url_path)
+        url = "{}{}{}".format(self.server_url, self.API_path, url_path)
         response = requests.get(url=url, headers=headers)
         return handle_response("logout_user", response, user_id=user_id)
