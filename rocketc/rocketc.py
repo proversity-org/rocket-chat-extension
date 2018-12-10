@@ -759,12 +759,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             login_token = user_data.get("authToken")
             user_id = user_data.get("userId")
             response = api.logout_user(user_id, login_token)
-            try:
-                response = response.json()
-                if response.get("status") == "success":
-                    cache.delete(key)
-                    return Response(status=202)
-            except AttributeError:
-                return Response(status=503)
+
+            if response.get("status") == "success":
+                cache.delete(key)
+                return Response(status=202)
 
         return Response(status=404)
