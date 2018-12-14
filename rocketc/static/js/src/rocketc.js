@@ -106,7 +106,8 @@ function RocketChatXBlock(runtime, element) {
         var groupName = $("#group-name-create").val();
         var description = $("#group-description").val();
         var topic = $("#group-topic").val();
-        var data = {groupName, description, topic};
+        var teamGroup = true;
+        var data = {groupName, description, topic, teamGroup};
         $.ajax({
             type: "POST",
             url: createGroup,
@@ -133,9 +134,9 @@ function RocketChatXBlock(runtime, element) {
         $("#select-channel").empty();
         $("#group-names").empty();
         for (var i in data){
-            var item =  $("<option>"+data[i]+"</option>");
+            var item =  $("<option value="+data[i]+">"+data[i].split("__")[0]+"</option>");
             $("#select-channel").append(item);
-            $("#group-names").append($("<option value="+data[i]+">"));
+            $("#group-names").append($("<option value="+data[i].split("__")[0]+">"));
             if(channel == item.val()){
                 $("#select-channel").val(channel);
             }

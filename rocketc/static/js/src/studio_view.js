@@ -11,7 +11,7 @@ function StudioViewEdit(runtime, element) {
             css("color", "green");
 
             if ($("#as-team").val()==="true"){
-                var name = "(Team Group)-"+ data["group"]["name"];
+                var name = "(Team Group)-"+ data["group"]["name"].split("__")[0];
             }
             else{
                 var name = $("#group-name").val();
