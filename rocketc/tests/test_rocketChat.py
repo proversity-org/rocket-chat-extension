@@ -89,7 +89,7 @@ class TestRocketChat(unittest.TestCase):
         self.assertTrue(result)
 
     @patch('rocketc.rocketc.RocketChatXBlock._add_user_to_group')
-    def test_add_user_to_default_group(self, mock_add_to_group):
+    def test_add_user_to_specific_group(self, mock_add_to_group):
         """
         Test the method add to default group
         """
@@ -97,7 +97,7 @@ class TestRocketChat(unittest.TestCase):
         user_id = "test_user_id"
         mock_add_to_group.return_value = True
 
-        result, group = self.block._add_user_to_default_group(group_name, user_id)
+        result, group = self.block._add_user_to_specific_group(group_name, user_id)
         self.assertTrue(result)
         self.assertEquals(group, "{}__{}".format(group_name, self.block.course_id))
         mock_add_to_group.assert_called_with(
@@ -106,7 +106,7 @@ class TestRocketChat(unittest.TestCase):
         )
 
         mock_add_to_group.return_value = False
-        result, group = self.block._add_user_to_default_group(group_name, user_id)
+        result, group = self.block._add_user_to_specific_group(group_name, user_id)
         self.assertFalse(result)
         self.assertEquals(group, "{}__{}".format(group_name, self.block.course_id))
 
@@ -301,7 +301,7 @@ class TestRocketChat(unittest.TestCase):
 
         self.block.selected_view = "Specific Channel"
 
-        with patch('rocketc.rocketc.RocketChatXBlock._add_user_to_default_group', return_value=(True, "")):
+        with patch('rocketc.rocketc.RocketChatXBlock._add_user_to_specific_group', return_value=(True, "")):
             self.block._join_user_to_groups(user_id, user_data, auth_token)
             self.assertTrue(self.block.ui_is_block)
 

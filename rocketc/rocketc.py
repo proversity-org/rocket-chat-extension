@@ -286,7 +286,8 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             try:
                 client_id = self.xblock_settings["client_id"]
                 client_secret = self.xblock_settings["client_secret"]
-            except KeyError:
+            except KeyError, xblock_settings_error:
+                LOG.error('Get rocketchat xblock settings error: %s', xblock_settings_error)
                 raise
 
             server_url = settings.LMS_ROOT_URL
@@ -429,7 +430,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         """
         This method add the user to the default course channel
         """
-        group_name = "{}__{}".format(_("General"), self.course_id)
+        group_name = "{}__{}".format("General", self.course_id)
         self._add_user_to_group(
             user_id,
             group_name,
@@ -438,8 +439,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             create=True
         )
 
-    def _add_user_to_default_group(self, group_name, user_id):
+    def _add_user_to_specific_group(self, group_name, user_id):
         """
+        This method allows to add a user to a given group.
         """
         group = "{}__{}".format(group_name, self.course_id)
         result = self._add_user_to_group(user_id, group)
@@ -495,7 +497,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             if default_channel.startswith("(Team Group)"):
                 return self._join_user_to_specific_team_group(user_id, user_data, default_channel)
 
-            self.ui_is_block, default_channel = self._add_user_to_default_group(default_channel, user_id)
+            self.ui_is_block, default_channel = self._add_user_to_specific_group(default_channel, user_id)
             return default_channel
         else:
             self.ui_is_block = False
@@ -686,7 +688,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         team = self._get_team(self.user_data["username"])
         team_name, topic_id = generate_team_variables(team)
 
-        if group_name == team_name or group_name == _("General"):
+        if group_name == team_name or group_name == "General":
             return {"success": False, "error": "You Can Not Leave a Main Group"}
         group_name = "{}__{}__{}__{}".format(group_name, team_name, topic_id, self.course_id)
 
