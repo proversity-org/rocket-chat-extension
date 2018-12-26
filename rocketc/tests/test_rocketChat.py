@@ -4,7 +4,7 @@ import json
 
 from django.test.utils import override_settings
 from mock import MagicMock, patch, PropertyMock
-from rocketc.rocketc import RocketChatXBlock
+from rocketc.rocketc import RocketChatXBlock, generate_custom_fields
 from rocketc.api_rocket_chat import ApiRocketChat
 from rocketc.api_teams import ApiTeams
 from django.core.cache import cache
@@ -17,12 +17,13 @@ class TestRocketChat(unittest.TestCase):
         """Set up general variables"""
 
         self.runtime_mock = MagicMock()
+        self.runtime_mock.course_id = "test_course_id"
         scope_ids_mock = MagicMock()
         scope_ids_mock.usage_id = u'0'
         self.block = RocketChatXBlock(
             self.runtime_mock, scope_ids=scope_ids_mock)
         self.block.email = "email"
-        self.block.api_rocket_chat = MagicMock()
+        self.block._api_rocket_chat = MagicMock()
 
         self.modules = {
             'rocketc.openedx_dependencies': MagicMock(),
@@ -31,91 +32,126 @@ class TestRocketChat(unittest.TestCase):
         self.module_patcher = patch.dict('sys.modules', self.modules)
         self.module_patcher.start()
 
-    def test_add_user_to_course_group(self):
+    @patch('rocketc.rocketc._')
+    @patch('rocketc.rocketc.RocketChatXBlock._add_user_to_group')
+    def test_add_user_to_course_group(self, mock_add_to_group, mock_ugettext):
         """Test for the add course group method"""
-        group_name = "test_group"
+        general = "General"
+        group_name = "{}__{}".format(general, "testcourseid")
+        user_id = "test_user_id"
+        mock_ugettext.return_value = general
+        username = "test_username"
+        with patch('rocketc.rocketc.RocketChatXBlock.user_data', new_callable=PropertyMock) as mock_user_data:
+            mock_user_data.return_value = {"username": username}
+            self.block._add_user_to_course_group(user_id)
+            mock_add_to_group.assert_called_with(
+                user_id,
+                group_name,
+                members=[username],
+                create=True,
+                custom_fields=generate_custom_fields(self.block.course_id)
+            )
+
+    def test_add_user_to_group(self):
+        """Test for the add to group method"""
+        group_name = "test_group_name"
         user_id = "test_user_id"
         data = {'success': True, 'group': {'_id': "test_group_id"}}
+        members = ["test_user_name"]
 
         self.block.api_rocket_chat.search_rocket_chat_group.return_value = data
-        self.block._add_user_to_course_group(group_name, user_id)
+        self.block.api_rocket_chat.add_user_to_group.return_value = data
+        result = self.block._add_user_to_group(user_id, group_name)
         self.block.api_rocket_chat.add_user_to_group.assert_called_with(
-            user_id, data['group']['_id'])
+            user_id,
+            data['group']['_id']
+        )
 
-        with patch('rocketc.rocketc.RocketChatXBlock.user_data', new_callable=PropertyMock) as mock_user:
-            mock_user.return_value = {"username": "test_user_name"}
-            data['success'] = False
-            self.block.api_rocket_chat.search_rocket_chat_group.return_value = data
-            self.block._add_user_to_course_group(group_name, user_id)
-            self.block.api_rocket_chat.create_group.assert_called_with(
-                group_name, ["test_user_name"])
+        self.assertTrue(result)
 
-    def test_add_user_to_default_group(self):
+        custom_fields = generate_custom_fields(self.block.course_id)
+
+        data['success'] = False
+        self.block.api_rocket_chat.search_rocket_chat_group.return_value = data
+        result = self.block._add_user_to_group(
+            user_id,
+            group_name,
+            members=members,
+            create=True,
+            custom_fields=custom_fields
+        )
+        self.block.api_rocket_chat.create_group.assert_called_with(
+            group_name,
+            ["test_user_name"],
+            **custom_fields
+        )
+
+        self.assertTrue(result)
+
+    @patch('rocketc.rocketc.RocketChatXBlock._add_user_to_group')
+    def test_add_user_to_specific_group(self, mock_add_to_group):
         """
         Test the method add to default group
         """
         group_name = "test_group_name"
         user_id = "test_user_id"
+        mock_add_to_group.return_value = True
 
-        self.block.api_rocket_chat.search_rocket_chat_group.return_value = {
-            "success": True, "group": {"_id": "1234"}}
+        result, group = self.block._add_user_to_specific_group(group_name, user_id)
+        self.assertTrue(result)
+        self.assertEquals(group, "{}__{}".format(group_name, self.block.course_id))
+        mock_add_to_group.assert_called_with(
+            user_id,
+            "{}__{}".format(group_name, self.block.course_id),
+        )
 
-        self.assertTrue(
-            self.block._add_user_to_default_group(group_name, user_id))
-        self.block.api_rocket_chat.add_user_to_group.assert_called_with(user_id, "1234")
+        mock_add_to_group.return_value = False
+        result, group = self.block._add_user_to_specific_group(group_name, user_id)
+        self.assertFalse(result)
+        self.assertEquals(group, "{}__{}".format(group_name, self.block.course_id))
 
-        self.block.api_rocket_chat.search_rocket_chat_group.return_value = {
-            "success": False}
-
-        self.assertFalse(
-            self.block._add_user_to_default_group(group_name, user_id))
-        self.block.api_rocket_chat.add_user_to_group.assert_called_with(user_id, "1234")
-
-    @patch('rocketc.rocketc.RocketChatXBlock._api_teams')
+    @patch('rocketc.rocketc.RocketChatXBlock._add_user_to_group')
     @patch('rocketc.rocketc.RocketChatXBlock._remove_user_from_group')
     @patch('rocketc.rocketc.RocketChatXBlock._get_team')
-    def test_add_user_to_team_group(self, mock_get_team, mock_remove_user, mock_teams):
+    def test_add_user_to_team_group(self, mock_get_team, mock_remove_user, mock_add_to_group):
         """
         test method add to team group
         """
         user_id = "test_user_id"
         username = "test_user_name"
-        course_id = "test_course_id"
         auth_token = "test_auth_token"
+        self.block.team_channel = ""
 
         mock_get_team.return_value = None
-        self.block.team_channel = "test_team_channel"
 
         self.assertFalse(self.block._add_user_to_team_group(
             user_id,
             username,
-            course_id,
             auth_token)
         )
+        group_name = "{}__{}__{}".format("name", "test", self.block.course_id)
 
+        team = {"name": "name", "topic_id": "test"}
         mock_get_team.return_value = {"name": "name", "topic_id": "test"}
-        self.block.api_rocket_chat.search_rocket_chat_group.return_value = {
-            "success": True, "group": {"_id": "1234"}}
 
-        self.block._add_user_to_team_group(user_id, username, course_id, auth_token)
-        self.assertEqual(self.block.team_channel, "Team-test-name")
-
-        self.block.api_rocket_chat.add_user_to_group.assert_called_with(user_id, "1234")
-
-        self.block.api_rocket_chat.search_rocket_chat_group.return_value = {
-            "success": False}
-        self.block._add_user_to_team_group(user_id, username, course_id, auth_token)
-
-        self.block.api_rocket_chat.create_group.assert_called_with(
-            "Team-test-name", [username])
+        self.block._add_user_to_team_group(user_id, username, auth_token)
+        self.assertEqual(self.block.team_channel, group_name)
+        mock_add_to_group.assert_called_with(
+            user_id,
+            group_name,
+            members=[username],
+            custom_fields=generate_custom_fields(self.block.course_id, team),
+            create=True
+        )
 
     def test_api_rocket_chat(self):
         """
         Test api rocket chat
         """
+        self.block._api_rocket_chat = None
         with patch('rocketc.rocketc.ApiRocketChat.login'):
             with patch('rocketc.rocketc.RocketChatXBlock.xblock_settings'):
-                self.assertIsInstance(self.block._api_rocket_chat(), ApiRocketChat)
+                self.assertIsInstance(self.block.api_rocket_chat, ApiRocketChat)
 
     @patch('rocketc.rocketc.RocketChatXBlock._teams_is_enabled')
     def test_channels_enabled(self, mock_team):
@@ -132,8 +168,7 @@ class TestRocketChat(unittest.TestCase):
 
     @patch('rocketc.rocketc.RocketChatXBlock._create_team_group_name')
     @patch('rocketc.rocketc.RocketChatXBlock._api_teams')
-    @patch('rocketc.rocketc.RocketChatXBlock._api_rocket_chat')
-    def test_create_group(self, mock_api_rocket, mock_teams, mock_create_name):
+    def test_create_group(self, mock_teams, mock_create_name):
         """test create group"""
 
         data = {"groupName": "", "description": "test:description",
@@ -150,38 +185,36 @@ class TestRocketChat(unittest.TestCase):
                 "description": "test:description", "topic": "test_topic"}
 
         mock_request = MagicMock(method="POST", body=json.dumps(data))
-        mock_api_rocket.return_value.create_group.return_value = {
+        self.block._api_rocket_chat.create_group.return_value = {
             "success": True, "group": {"_id": "1234"}}
         mock_create_name.return_value = data["groupName"]
 
         result = self.block.create_group(mock_request)
 
-        mock_api_rocket.return_value.create_group.assert_called_with(data["groupName"])
-        self.assertEqual(self.block.default_channel, data["groupName"])
+        group_name = "{}__{}".format(data["groupName"], self.block.course_id)
+
+        self.block._api_rocket_chat.create_group.assert_called_with(
+            group_name,
+            [],
+            **generate_custom_fields(self.block.course_id)
+        )
         self.assertEqual(json.loads(result.body), {
                          "success": True, "group": {"_id": "1234"}})
 
-        self.block.xmodule_runtime = MagicMock()
-        self.block.xmodule_runtime.course_id.to_deprecated_string.return_value = "test_course_id"
-        result = self.block.create_group(mock_request)
-        mock_api_rocket.return_value.create_group.assert_called_with(data["groupName"], [])
-        self.assertEqual(json.loads(result.body), {
-                         "success": True, "group": {"_id": "1234"}})
-
-    @patch('rocketc.rocketc.RocketChatXBlock._api_rocket_chat')
     @patch('rocketc.rocketc.RocketChatXBlock._api_teams')
-    def test_get_groups(self, mock_teams, mock_api_rocket):
+    def test_get_groups(self, mock_teams):
         """
         Test get_groups
         """
-        mock_api_rocket.return_value.get_groups.side_effect = [["Team-group", "group1", "group2"], ["Team-group"]]
-        groups = self.block.get_groups()
-        self.assertEqual(groups, ["", "(Team Group)-Team-group", "group1", "group2"])
+        with patch('rocketc.rocketc.RocketChatXBlock.api_rocket_chat', new_callable=PropertyMock) as mock_api_rocket:
+            mock_api_rocket.return_value.get_groups.side_effect = [["group1", "group2"], ["Team-group"]]
+            groups = self.block.get_groups()
+            self.assertEqual(groups, ["", "(Team Group)-Team-group", "group1", "group2"])
 
     @patch('rocketc.rocketc.RocketChatXBlock._grading_discussions')
     @patch('rocketc.rocketc.RocketChatXBlock._update_user')
     @patch('rocketc.rocketc.RocketChatXBlock._join_user_to_groups')
-    @patch('rocketc.rocketc.RocketChatXBlock.login')
+    @patch('rocketc.rocketc.RocketChatXBlock._login')
     def test_init(self, mock_login, mock_join_user, mock_update_user, mock_grading):
         """
         Test the method to initialize the xblock
@@ -199,7 +232,6 @@ class TestRocketChat(unittest.TestCase):
             self.assertEqual(self.block.init(), data)
             mock_join_user.assert_called_with(user_id, user_data, auth_token)
             mock_update_user.assert_called_with(user_id, user_data)
-            self.block.api_rocket_chat.change_user_role.assert_called_with(user_id, "bot")
 
             mock_login.return_value = {
                 "success": False, "errorType": "test_error"}
@@ -218,14 +250,14 @@ class TestRocketChat(unittest.TestCase):
         self.block.api_rocket_chat.create_token.return_value = {'success': True}
         success = {'success': True}
 
-        result_if = self.block.login(test_data)
+        result_if = self.block._login(test_data)
         self.block.api_rocket_chat.create_token.assert_called_with(test_data['username'])
 
         success['success'] = False
 
         self.block.api_rocket_chat.search_rocket_chat_user.return_value = success
         cache.clear()
-        result_else = self.block.login(test_data)
+        result_else = self.block._login(test_data)
         self.block.api_rocket_chat.create_user.assert_called_with(test_data["anonymous_student_id"], test_data[
             "email"], test_data["username"])
         self.block.api_rocket_chat.create_token.assert_called_with(test_data['username'])
@@ -238,17 +270,15 @@ class TestRocketChat(unittest.TestCase):
         This method gets the user's team
         """
         username = "test_user_name"
-        course_id = " test_course_id"
-        self.block.api_teams = MagicMock()
-        self.block.api_teams.get_user_team.return_value = ["test_team"]
+        self.block._api_teams = MagicMock()
+        self.block._api_teams.get_user_team.return_value = ["test_team"]
 
         with patch('rocketc.rocketc.RocketChatXBlock.xblock_settings', new_callable=PropertyMock) as mock_settings:
             mock_settings.return_value = {"username": "test_user_name", "password": "test_password",
                                           "client_id": "test_id", "client_secret": "test_secret"}
-            self.assertEqual(self.block._get_team(
-                username, course_id), "test_team")
+            self.assertEqual(self.block._get_team(username), "test_team")
             self.block.api_teams.get_user_team.return_value = []
-            self.assertIsNone(self.block._get_team(username, course_id))
+            self.assertIsNone(self.block._get_team(username))
 
     def test_join_user_to_groups(self):
         """
@@ -271,7 +301,7 @@ class TestRocketChat(unittest.TestCase):
 
         self.block.selected_view = "Specific Channel"
 
-        with patch('rocketc.rocketc.RocketChatXBlock._add_user_to_default_group', return_value=True):
+        with patch('rocketc.rocketc.RocketChatXBlock._add_user_to_specific_group', return_value=(True, "")):
             self.block._join_user_to_groups(user_id, user_data, auth_token)
             self.assertTrue(self.block.ui_is_block)
 
@@ -295,14 +325,9 @@ class TestRocketChat(unittest.TestCase):
         self.block.api_rocket_chat.set_avatar.assert_called_with(
             user_data["username"], "test_url")
 
-    def test_user_data(self):
+    def test_course_id(self):
 
-        mock_runtime = MagicMock()
-        mock_runtime.course_id.to_deprecated_string.return_value = "test_course_id"
-        self.block.xmodule_runtime = mock_runtime
-
-        data = self.block.user_data
-        self.assertEqual(data["course"], "testcourseid")
+        self.assertEqual(self.block.course_id, "testcourseid")
 
     @override_settings(LMS_ROOT_URL="http://127.0.0.1/")
     @patch('rocketc.rocketc.User')

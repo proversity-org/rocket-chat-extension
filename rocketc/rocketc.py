@@ -30,6 +30,39 @@ ROCKET_CHAT_DATA = "rocket_chat_data"
 CACHE_TIMEOUT = 86400
 
 
+def generate_custom_fields(course, team=None, specific_team=False):
+
+    team_name, topic = generate_team_variables(team)
+    return {
+        "customFields": {
+            "course": course,
+            "team": team_name,
+            "topic": topic,
+            "specificTeam": specific_team,
+        }
+    }
+
+
+def generate_query_dict(course, team=None, specific_team=False):
+
+    team_name, topic = generate_team_variables(team)
+    query = {
+        "customFields.course": course,
+        "customFields.team": team_name,
+        "customFields.topic": topic,
+        "customFields.specificTeam": specific_team,
+    }
+    return {"query": json.dumps(query)}
+
+
+def generate_team_variables(team):
+    if isinstance(team, dict):
+        topic_id = re.sub(r'\W+', '', team.get("topic_id", None))
+        team_name = re.sub(r'\W+', '', team.get("name", None))
+        return team_name, topic_id
+    return None, None
+
+
 @XBlock.wants("user")  # pylint: disable=too-many-ancestors, too-many-instance-attributes
 @XBlock.wants("settings")
 class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
@@ -133,6 +166,8 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
     has_score = graded_activity
     team_view = True
+    _api_teams = None
+    _api_rocket_chat = None
 
     VIEWS = ["Main View", "Team Discussion", "Specific Channel"]
 
@@ -161,7 +196,6 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         The primary view of the RocketChatXBlock, shown to students
         when viewing courses.
         """
-        self.api_rocket_chat = self._api_rocket_chat()  # pylint: disable=attribute-defined-outside-init
         in_studio_runtime = hasattr(
             self.xmodule_runtime, 'is_author_mode')  # pylint: disable=no-member
 
@@ -187,7 +221,6 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
     def author_view(self, context=None):
         """  Returns author view fragment on Studio """
         # pylint: disable=unused-argument
-        self.api_rocket_chat.convert_to_private_channel("general")
         frag = Fragment(u"Studio Runtime RocketChatXBlock")
         frag.add_javascript(self.resource_string("static/js/src/rocketc.js"))
         frag.initialize_js('RocketChatXBlock')
@@ -222,39 +255,52 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
              """),
         ]
 
-    def _api_rocket_chat(self):
+    @property
+    def api_rocket_chat(self):
         """
         Creates an ApiRocketChat object
         """
-        try:
-            user = self.xblock_settings["admin_user"]
-            password = self.xblock_settings["admin_pass"]
-        except KeyError:
-            LOG.exception("The admin's settings has not been found")
-            raise
-        api = ApiRocketChat(user, password, self.server_data["private_url_service"])
+        if not self._api_rocket_chat:
+            try:
+                user = self.xblock_settings["admin_user"]
+                password = self.xblock_settings["admin_pass"]
+            except KeyError:
+                LOG.exception("The admin's settings has not been found")
+                raise
+            self._api_rocket_chat = ApiRocketChat(  # pylint: disable=attribute-defined-outside-init
+                user,
+                password,
+                self.server_data["private_url_service"]
+            )
 
-        LOG.info("Api rocketChat initialize: %s ", api)
+            LOG.info("Api rocketChat initialize: %s ", self._api_rocket_chat)
 
-        return api
+        return self._api_rocket_chat
 
-    def _api_teams(self):
+    @property
+    def api_teams(self):
         """
         Creates an ApiTeams object
         """
-        try:
-            client_id = self.xblock_settings["client_id"]
-            client_secret = self.xblock_settings["client_secret"]
-        except KeyError:
-            raise
+        if not self._api_teams:
+            try:
+                client_id = self.xblock_settings["client_id"]
+                client_secret = self.xblock_settings["client_secret"]
+            except KeyError, xblock_settings_error:
+                LOG.error('Get rocketchat xblock settings error: %s', xblock_settings_error)
+                raise
 
-        server_url = settings.LMS_ROOT_URL
+            server_url = settings.LMS_ROOT_URL
 
-        api = ApiTeams(client_id, client_secret, server_url)
+            self._api_teams = ApiTeams(  # pylint: disable=attribute-defined-outside-init
+                client_id,
+                client_secret,
+                server_url
+            )
 
-        LOG.info("Api Teams initialize: %s ", api)
+            LOG.info("Api Teams initialize: %s ", self._api_teams)
 
-        return api
+        return self._api_teams
 
     @property
     def server_data(self):
@@ -272,13 +318,12 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         """
         This method initializes the user's parameters
         """
-        runtime = self.xmodule_runtime  # pylint: disable=no-member
+        runtime = self.runtime  # pylint: disable=no-member
         user = runtime.service(self, 'user').get_current_user()
         user_data = {}
         user_data["email"] = user.emails[0]
         user_data["role"] = runtime.get_user_role()
         user_data["course_id"] = runtime.course_id
-        user_data["course"] = re.sub('[^A-Za-z0-9]+', '', runtime.course_id.to_deprecated_string()) # pylint: disable=protected-access
         user_data["username"] = user.opt_attrs['edx-platform.username']
         user_data["anonymous_student_id"] = runtime.anonymous_student_id
         return user_data
@@ -289,6 +334,17 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         This method allows to get the xblock settings
         """
         return self.get_xblock_settings()
+
+    @property
+    def course_id(self):
+        """
+        This method allows to get the course_id
+        """
+        try:
+            return re.sub('[^A-Za-z0-9]+', '', unicode(self.xmodule_runtime.course_id))
+        except AttributeError:
+            course_id = unicode(self.runtime.course_id)
+            return re.sub('[^A-Za-z0-9]+', '', course_id.split("+branch", 1)[0])
 
     def channels_enabled(self):
         """
@@ -304,24 +360,19 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         """
         This method lists the existing groups
         """
-        api = self._api_teams()
-        teams = api.get_course_teams(self.runtime.course_id)
-        topics = [re.sub(r'\W+', '', team["topic_id"]) for team in teams]
-
         # the following instructions get all the groups
-        # except the groups with the string of some topic in its name
-        query = {'name': {'$regex': '^(?!.*({topics}).*$)'.format(topics='|'.join(topics))}} if topics else {}
-        kwargs = {"query": json.dumps(query)}
-        groups = self._api_rocket_chat().get_groups(**kwargs)
+        # except the team groups and specific teams
+        course = self.course_id
+        kwargs = generate_query_dict(course)
+        groups = [group.split("__", 1)[0] for group in self.api_rocket_chat.get_groups(**kwargs)]
 
-        # these instructions get all the groups with the customField "specificTeam" set
-        query = {'customFields.specificTeam': {'$regex': '^.*'}}
-        kwargs = {'query': json.dumps(query)}
-        team_groups = self._api_rocket_chat().get_groups(**kwargs)
-
+        kwargs = generate_query_dict(course, specific_team=True)
         # This instruction adds the string "(Team Group)" if the group is in team_groups
-        # pylint: disable=line-too-long
-        groups = ['{}-{}'.format('(Team Group)', group) if group in team_groups else group for group in groups]
+        groups += [
+            '{}-{}'.format("(Team Group)", team_group.split("__", 1)[0])
+            for team_group in self.api_rocket_chat.get_groups(**kwargs)
+        ]
+
         groups.append("")
         return sorted(groups)
 
@@ -333,7 +384,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
         user_data = self.user_data
 
-        response = self.login(user_data)
+        response = self._login(user_data)
         if response['success']:
             response = response['data']
             user_id = response['userId']
@@ -342,15 +393,12 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             response['default_group'] = self._join_user_to_groups(user_id, user_data, auth_token)
             self._update_user(user_id, user_data)
 
-            if user_data["role"] == "instructor" and self.rocket_chat_role != "bot":
-                self.api_rocket_chat.change_user_role(user_id, "bot")
-
             self._grading_discussions(response['default_group'])
             return response
-        else:
-            return response['errorType']
 
-    def login(self, user_data):
+        return response['errorType']
+
+    def _login(self, user_data):
         """
         This method allows to get the user's authToken and id
         or creates a user to login in RocketChat
@@ -378,60 +426,57 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         cache.set(key, data, CACHE_TIMEOUT)
         return data
 
-    def _add_user_to_course_group(self, group_name, user_id):
+    def _add_user_to_course_group(self, user_id):
         """
         This method add the user to the default course channel
         """
-        api = self.api_rocket_chat
-        rocket_chat_group = api.search_rocket_chat_group(group_name)
+        group_name = "{}__{}".format("General", self.course_id)
+        self._add_user_to_group(
+            user_id,
+            group_name,
+            members=[self.user_data["username"]],
+            custom_fields=generate_custom_fields(course=self.course_id),
+            create=True
+        )
 
-        if rocket_chat_group['success']:
-            api.add_user_to_group(user_id, rocket_chat_group['group']['_id'])
-        else:
-            rocket_chat_group = api.create_group(group_name, [self.user_data["username"]])
-
-        self.group = api.search_rocket_chat_group(  # pylint: disable=attribute-defined-outside-init
-            group_name)
-
-    def _add_user_to_default_group(self, group_name, user_id):
+    def _add_user_to_specific_group(self, group_name, user_id):
         """
+        This method allows to add a user to a given group.
         """
-        api = self.api_rocket_chat
-        group_info = api.search_rocket_chat_group(group_name)
+        group = "{}__{}".format(group_name, self.course_id)
+        result = self._add_user_to_group(user_id, group)
+        return result, group
 
-        if group_info["success"]:
-            api.add_user_to_group(user_id, group_info['group']['_id'])
-            return True
-        return False
-
-    def _add_user_to_team_group(self, user_id, username, course_id, auth_token):
+    def _add_user_to_team_group(self, user_id, username, auth_token):
         """
         Add the user to team's group in rocketChat
         """
-        self.api_teams = self._api_teams()  # pylint: disable=attribute-defined-outside-init
-        team = self._get_team(username, course_id)
+        team = self._get_team(username)
 
         if team is None:
             self._remove_user_from_group(self.team_channel, user_id, auth_token)
             return False
-        topic_id = re.sub(r'\W+', '', team["topic_id"])
-        team_name = re.sub(r'\W+', '', team["name"])
-        group_name = "-".join(["Team", topic_id, team_name])
+        team_name, topic_id = generate_team_variables(team)
+        group_name = "{}__{}__{}".format(team_name, topic_id, self.course_id)
 
         if self.team_channel != group_name:
             self._remove_user_from_group(self.team_channel, user_id, auth_token)
 
         self.team_channel = group_name
 
-        response = self._add_user_to_group(user_id, group_name, username)
-        LOG.info("Add to team group response: %s", response)
-        return response["success"]
+        return self._add_user_to_group(
+            user_id,
+            group_name,
+            members=[username],
+            custom_fields=generate_custom_fields(self.course_id, team),
+            create=True
+        )
 
-    def _get_team(self, username, course_id):
+    def _get_team(self, username):
         """
         This method gets the user's team
         """
-        team = self.api_teams.get_user_team(course_id, username)
+        team = self.api_teams.get_user_team(self.runtime.course_id, username)
         LOG.info("Get Team response: %s", team)
         if team:
             return team[0]
@@ -444,8 +489,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         default_channel = self.default_channel
 
         if self.selected_view == self.VIEWS[1] and self._teams_is_enabled():
-            self.team_view = self._add_user_to_team_group(
-                user_id, user_data["username"], user_data["course_id"], auth_token)
+            self.team_view = self._add_user_to_team_group(user_id, user_data["username"], auth_token)
             self.ui_is_block = self.team_view
             return self.team_channel
 
@@ -453,35 +497,48 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             if default_channel.startswith("(Team Group)"):
                 return self._join_user_to_specific_team_group(user_id, user_data, default_channel)
 
-            self.ui_is_block = self._add_user_to_default_group(default_channel, user_id)
+            self.ui_is_block, default_channel = self._add_user_to_specific_group(default_channel, user_id)
             return default_channel
         else:
             self.ui_is_block = False
-            self._add_user_to_course_group(user_data["course"], user_id)
+            self._add_user_to_course_group(user_id)
         return None
 
-    def _add_user_to_group(self, user_id, group_name, username):
-        group_info = self.api_rocket_chat.search_rocket_chat_group(group_name)
+    def _add_user_to_group(self, user_id, group_name, **kwargs):
+        """
+        This method allows to add a user to any channel, returns True if it's successful
+        """
+        group = self.api_rocket_chat.search_rocket_chat_group(group_name)
+        response = {}
 
-        if group_info["success"]:
-            response = self.api_rocket_chat.add_user_to_group(user_id, group_info['group']['_id'])
-            LOG.info("Add to team group response: %s", response)
-            return response
+        if group["success"]:
+            response = self.api_rocket_chat.add_user_to_group(user_id, group['group']['_id'])
+        elif kwargs.get("create", False):
+            response = self.api_rocket_chat.create_group(
+                group_name,
+                kwargs.get("members", []),
+                **kwargs.get("custom_fields", {})
+            )
 
-        return self.api_rocket_chat.create_group(group_name, [username])
+        return response.get("success", False)
 
     def _join_user_to_specific_team_group(self, user_id, user_data, default_channel):
-        self.api_teams = self._api_teams()  # pylint: disable=attribute-defined-outside-init
-        team = self._get_team(user_data["username"], user_data["course_id"])
+        team = self._get_team(user_data["username"])
         if team is None:
             self.team_view = False
             return None
         default_channel = self._create_team_group_name(
             team,
-            default_channel.replace("(Team Group)-", "")
-            )
-        response = self._add_user_to_group(user_id, default_channel, user_data["username"])
-        self.ui_is_block = response["success"]
+            default_channel.replace("(Team Group)-", ""),
+            self.course_id
+        )
+        self.ui_is_block = self._add_user_to_group(
+            user_id,
+            default_channel,
+            members=[user_data["username"]],
+            custom_fields=generate_custom_fields(self.course_id, team),
+            create=True
+        )
         return default_channel
 
     def _teams_is_enabled(self):
@@ -533,54 +590,45 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         This method allows to create a group
         """
         # pylint: disable=unused-argument
-        self.api_rocket_chat = self._api_rocket_chat()  # pylint: disable=attribute-defined-outside-init
-        self.api_teams = self._api_teams()  # pylint: disable=attribute-defined-outside-init
-
-        group_name = data["groupName"]
-        description = data["description"]
-        topic = data["topic"]
+        group_name = data.get("groupName", None)
 
         if group_name == "" or group_name is None:
             return {"success": False, "error": "Group Name is not valid"}
 
         group_name = re.sub(r'\W+', '', group_name)
+        specific_team = False
+        members = []
+        team = None
 
-        if data.get("asTeam", False):
-            custom_fields = {"customFields": {"specificTeam": group_name}}
-            group = self.api_rocket_chat.create_group(group_name, **custom_fields)
-            if group["success"]:
-                self.default_channel = "{}-{}".format('(Team Group)', group_name)
+        if data.get("asTeam"):
+            group_name = "{}__{}".format(group_name, self.course_id)
+            specific_team = True
+
+        elif data.get("teamGroup"):
+            team = self._get_team(self.user_data["username"])
+            members = list(self.get_team_members(team))
+            group_name = self._create_team_group_name(team, group_name, self.course_id)
 
         else:
-            try:
-                course_id = self.xmodule_runtime.course_id  # pylint: disable=no-member
-                team = self._get_team(self.user_data["username"], course_id)
-                members = list(self.get_team_members(team))
-                group = self.api_rocket_chat.create_group(
-                    self._create_team_group_name(team, group_name),
-                    members
-                    )
+            group_name = "{}__{}".format(group_name, self.course_id)
 
-            except AttributeError:
-                group = self.api_rocket_chat.create_group(group_name)
-                if group["success"]:
-                    self.default_channel = group_name
+        custom_fields = generate_custom_fields(self.course_id, team, specific_team)
+        group = self.api_rocket_chat.create_group(group_name, members, **custom_fields)
 
         if "group" in group:
             group_id = group["group"]["_id"]
 
-            self.api_rocket_chat.set_group_description(group_id, description)
-            self.api_rocket_chat.set_group_topic(group_id, topic)
+            self.api_rocket_chat.set_group_description(group_id, data.get("description"))
+            self.api_rocket_chat.set_group_topic(group_id, data.get("topic"))
 
         LOG.info("Method Public Create Group: %s", group)
         return group
 
     @staticmethod
-    def _create_team_group_name(team, group_name):
+    def _create_team_group_name(team, group_name, course):
 
-        team_topic = re.sub(r'\W+', '', team["topic_id"])
-        team_name = re.sub(r'\W+', '', team["name"])
-        return "-".join([team_topic, team_name, group_name])
+        team_name, team_topic = generate_team_variables(team)
+        return "{}__{}__{}__{}".format(group_name, team_name, team_topic, course)
 
     def _remove_user_from_group(self, group_name, user_id, auth_token=None):
         """
@@ -594,21 +642,20 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             regex = group_name.replace('Team-', '', 1)
             query = {"name": {"$regex": regex}}
             kwargs = {"query": json.dumps(query)}
-            api = self.api_rocket_chat
             groups = api.list_all_groups(user_id, auth_token, **kwargs)
 
             if groups["success"]:
                 groups = groups["groups"]
                 for group in groups:
                     api.kick_user_from_group(user_id, group["_id"])
-                return True
+                return {"success": True}
 
         group = api.search_rocket_chat_group(group_name)
         if group["success"]:
             group = group["group"]
             response = api.kick_user_from_group(user_id, group["_id"])
-            return response.get('success', False)
-        return False
+            return response
+        return {"success": False, "error": "Channel not found"}
 
     def get_team_members(self, team):
         """
@@ -628,7 +675,6 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         """
         # pylint: disable=unused-argument
 
-        self.api_rocket_chat = self._api_rocket_chat()  # pylint: disable=attribute-defined-outside-init
         username = self.user_data["username"]
         user = self.api_rocket_chat.search_rocket_chat_user(username)
         group_name = data["groupName"]
@@ -639,8 +685,12 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         if group_name == "" or group_name is None:
             return {"success": False, "error": "Group Name is not valid"}
 
-        if group_name == self.team_channel or group_name == self.user_data["course"]:
+        team = self._get_team(self.user_data["username"])
+        team_name, topic_id = generate_team_variables(team)
+
+        if group_name == team_name or group_name == "General":
             return {"success": False, "error": "You Can Not Leave a Main Group"}
+        group_name = "{}__{}__{}__{}".format(group_name, team_name, topic_id, self.course_id)
 
         return self._remove_user_from_group(group_name, user["user"]["_id"])
 
@@ -650,20 +700,14 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         # pylint: disable=unused-argument
         user_id = data.get("userId", None)
         auth_token = data.get("authToken", None)
-        self.api_teams = self._api_teams()  # pylint: disable=attribute-defined-outside-init
 
         if not user_id or not auth_token:
             LOG.warn("Invalid data for method get_list_of_groups: %s", data)
             return None
 
-        course_id = self.xmodule_runtime.course_id  # pylint: disable=no-member
-        team = self._get_team(self.user_data["username"], course_id)
-        topic = re.sub(r'\W+', '', team["topic_id"])
-        team_name = re.sub(r'\W+', '', team["name"])
+        team = self._get_team(self.user_data["username"])
 
-        regex = "-".join([topic, team_name])
-        query = {"name": {"$regex": regex}}
-        kwargs = {"query": json.dumps(query)}
+        kwargs = generate_query_dict(self.course_id, team=team)
 
         groups = list(self._get_list_groups(user_id, auth_token, **kwargs))
         return groups
@@ -672,7 +716,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         """
         This method allows to get a list of group names
         """
-        api = self._api_rocket_chat()
+        api = self.api_rocket_chat
         groups = api.list_all_groups(user_id, auth_token, **kwargs)
         if groups["success"]:
             groups = groups["groups"]
@@ -704,7 +748,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         Returns generator with filtered messages by a given reaction
         """
         for message in messages:
-            if not reaction in message.get("reactions", {}):
+            if reaction not in message.get("reactions", {}):
                 continue
             usernames = message["reactions"][reaction]["usernames"]
 
@@ -754,7 +798,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         key = request.GET.get("beacon_rc")
         data = cache.get(key)
         if data:
-            api = self._api_rocket_chat()
+            api = self.api_rocket_chat
             user_data = data.get("data")
             login_token = user_data.get("authToken")
             user_id = user_data.get("userId")
