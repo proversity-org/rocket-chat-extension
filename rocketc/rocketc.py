@@ -626,9 +626,22 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
     @staticmethod
     def _create_team_group_name(team, group_name, course):
+        """
+        This method returns the formated name for given team and group name,
+        in order to ensure a unique name in the rocketchat server.
+        **Example**
+            ** group_name = "Test"
+            ** team = {
+                "name": "team1",
+                "topic": "animals"
+                ......
+            }
+            ** course = "coursev1:edx-c101-2019T2"
 
+            returns "Test(animals/team1)__coursev1:edx-c101-2019T2"
+        """
         team_name, team_topic = generate_team_variables(team)
-        return "{}__{}__{}__{}".format(group_name, team_name, team_topic, course)
+        return "{}({}/{})__{}".format(group_name, team_topic, team_name, course)
 
     def _remove_user_from_group(self, group_name, user_id, auth_token=None):
         """
@@ -705,11 +718,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             LOG.warn("Invalid data for method get_list_of_groups: %s", data)
             return None
 
-        team = self._get_team(self.user_data["username"])
-
-        kwargs = generate_query_dict(self.course_id, team=team)
-
-        groups = list(self._get_list_groups(user_id, auth_token, **kwargs))
+        groups = list(self._get_list_groups(user_id, auth_token))
         return groups
 
     def _get_list_groups(self, user_id, auth_token, **kwargs):
@@ -718,10 +727,16 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         """
         api = self.api_rocket_chat
         groups = api.list_all_groups(user_id, auth_token, **kwargs)
+        team, topic = generate_team_variables(self._get_team(self.user_data["username"]))
         if groups["success"]:
-            groups = groups["groups"]
-            for group in groups:
-                yield group["name"]
+            for group in groups["groups"]:
+                fields = group.get("customFields", {})
+                if (
+                    team == fields.get("team") and
+                    topic == fields.get("topic") and
+                    self.course_id == fields.get("course")
+                ):
+                    yield group["name"]
 
     def _get_user_messages(self, group_name, latest="", oldest="", count=100):
         """
