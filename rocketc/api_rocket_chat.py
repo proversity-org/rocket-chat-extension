@@ -146,13 +146,11 @@ class ApiRocketChat(RocketChat):
     def list_all_groups(self, user_id, auth_token, **kwargs):
         """Get a list of groups"""
         url_path = "groups.list"
-        payload = kwargs
         url = "{}{}{}".format(self.server_url, self.API_path, url_path)
 
         headers = {"X-User-Id": user_id, "X-Auth-Token": auth_token}
 
-        response = requests.get(url=url, headers=headers, params=payload)
-        return handle_response("list_all_groups", response, **kwargs)
+        return handle_response("list_all_groups", requests.get(url=url, headers=headers), **kwargs)
 
     def get_groups_history(self, room_id, latest="", oldest="",  # pylint: disable=too-many-arguments
                            count=100, inclusive=False, unreads=False):
