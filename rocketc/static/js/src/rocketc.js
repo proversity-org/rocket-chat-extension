@@ -145,8 +145,8 @@ function RocketChatXBlock(runtime, element) {
             $("#select-channel").val($("#tool-buttons").attr("data-default"));
         }
         $("#select-channel").change(function(){
-            let groupName = $("#select-channel").val().replace("/", "%252F")
-            url = $("#tool-buttons").attr("data-domain") + groupName +"?layout=embedded";
+            var groupName = $("#select-channel").val().replace("/", "%252F")
+            url = $("#tool-buttons").attr("data-domain") + groupName + "?layout=embedded";
             $("#myframe").attr("src", url);
         });
     };

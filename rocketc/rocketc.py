@@ -626,7 +626,20 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
     @staticmethod
     def _create_team_group_name(team, group_name, course):
+        """
+        This method returns the formated name for given team and group name,
+        in order to ensure a unique name in the rocketchat server.
+        **Example**
+            ** group_name = "Test"
+            ** team = {
+                "name": "team1",
+                "topic": "animals"
+                ......
+            }
+            ** course = "coursev1:edx-c101-2019T2"
 
+            returns "Test(animals/team1)__coursev1:edx-c101-2019T2"
+        """
         team_name, team_topic = generate_team_variables(team)
         return "{}({}/{})__{}".format(group_name, team_topic, team_name, course)
 
@@ -718,11 +731,12 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         if groups["success"]:
             for group in groups["groups"]:
                 fields = group.get("customFields", {})
-                try:
-                    if (team == fields["team"] and topic == fields["topic"] and self.course_id == fields["course"]):
-                            yield group["name"]
-                except IndexError:
-                    pass
+                if (
+                    team == fields.get("team") and
+                    topic == fields.get("topic") and
+                    self.course_id == fields.get("course")
+                ):
+                    yield group["name"]
 
     def _get_user_messages(self, group_name, latest="", oldest="", count=100):
         """
