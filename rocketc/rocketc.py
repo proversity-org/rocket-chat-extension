@@ -268,9 +268,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
                 LOG.exception("The admin's settings has not been found")
                 raise
             self._api_rocket_chat = ApiRocketChat(  # pylint: disable=attribute-defined-outside-init
-                user,
-                password,
-                self.server_data["private_url_service"]
+                user=user,
+                password=password,
+                server_url=self.server_data["private_url_service"],
             )
 
             LOG.info("Api rocketChat initialize: %s ", self._api_rocket_chat)

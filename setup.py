@@ -33,6 +33,7 @@ setup(
     ],
     install_requires=[
         'XBlock',
+        'rocketchat-API==0.6.34',
     ],
     entry_points={
         'xblock.v1': [
