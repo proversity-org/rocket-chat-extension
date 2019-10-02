@@ -383,7 +383,6 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         """
 
         user_data = self.user_data
-
         key = hashlib.sha1("{}-{}-{}-{}-{}".format(
             ROCKET_CHAT_DATA,
             user_data["username"],
@@ -391,7 +390,6 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             self.default_channel,
             self._get_team(user_data["username"]),
         )).hexdigest()
-
         response = cache.get(key)
 
         if response:
@@ -427,7 +425,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         rocket_chat_user = api.search_rocket_chat_user(user_data["username"])
         LOG.info("Login method: result search user: %s", rocket_chat_user["success"])
 
-        if rocket_chat_user['success']:
+        if rocket_chat_user["success"]:
             data = api.create_token(user_data["username"])
         else:
             response = api.create_user(user_data["anonymous_student_id"], user_data[
