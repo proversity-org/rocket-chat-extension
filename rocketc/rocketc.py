@@ -10,6 +10,7 @@ import pkg_resources
 from api_teams import ApiTeams  # pylint: disable=relative-import
 from api_rocket_chat import ApiRocketChat  # pylint: disable=relative-import
 
+from lms.djangoapps.teams.models import CourseTeamMembership
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
@@ -56,9 +57,9 @@ def generate_query_dict(course, team=None, specific_team=False):
 
 
 def generate_team_variables(team):
-    if isinstance(team, dict):
-        topic_id = re.sub(r'\W+', '', team.get("topic_id", None))
-        team_name = re.sub(r'\W+', '', team.get("name", None))
+    if team:
+        topic_id = re.sub(r'\W+', '', team.topic_id)
+        team_name = re.sub(r'\W+', '', team.name)
         return team_name, topic_id
     return None, None
 
@@ -206,7 +207,6 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             "response": self.init(),
             "user_data": self.user_data,
             "ui_is_block": self.ui_is_block,
-            "team_view": self.team_view,
             "public_url_service": self.server_data["public_url_service"],
             "key": hashlib.sha1("{}_{}".format(ROCKET_CHAT_DATA, self.user_data["username"])).hexdigest()
         }
@@ -384,16 +384,29 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
         user_data = self.user_data
 
+        key = hashlib.sha1("{}-{}-{}-{}-{}".format(
+            ROCKET_CHAT_DATA,
+            user_data["username"],
+            self.selected_view,
+            self.default_channel,
+            self._get_team(user_data["username"]),
+        )).hexdigest()
+
+        response = cache.get(key)
+
+        if response:
+            return response
+
         response = self._login(user_data)
         if response['success']:
             response = response['data']
             user_id = response['userId']
             auth_token = response['authToken']
-
             response['default_group'] = self._join_user_to_groups(user_id, user_data, auth_token)
+            response['team_view'] = self.team_view
             self._update_user(user_id, user_data)
-
             self._grading_discussions(response['default_group'])
+            cache.set(key, response, CACHE_TIMEOUT)
             return response
 
         return response['errorType']
@@ -403,17 +416,18 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         This method allows to get the user's authToken and id
         or creates a user to login in RocketChat
         """
-        api = self.api_rocket_chat
-
-        rocket_chat_user = api.search_rocket_chat_user(user_data["username"])
-        LOG.info("Login method: result search user: %s", rocket_chat_user["success"])
-
         key = hashlib.sha1("{}_{}".format(ROCKET_CHAT_DATA, user_data["username"])).hexdigest()
         data = cache.get(key)
 
         if data:
             return data
-        elif rocket_chat_user['success']:
+
+        api = self.api_rocket_chat
+
+        rocket_chat_user = api.search_rocket_chat_user(user_data["username"])
+        LOG.info("Login method: result search user: %s", rocket_chat_user["success"])
+
+        if rocket_chat_user['success']:
             data = api.create_token(user_data["username"])
         else:
             response = api.create_user(user_data["anonymous_student_id"], user_data[
@@ -476,10 +490,13 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         """
         This method gets the user's team
         """
-        team = self.api_teams.get_user_team(self.runtime.course_id, username)
-        LOG.info("Get Team response: %s", team)
-        if team:
-            return team[0]
+        course_team_membership = CourseTeamMembership.objects.filter(
+            user=User.objects.get(username=username),
+        )
+
+        if course_team_membership:
+            return course_team_membership[0].team
+
         return None
 
     def _join_user_to_groups(self, user_id, user_data, auth_token):
