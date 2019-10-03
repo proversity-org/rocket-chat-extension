@@ -2,7 +2,7 @@
 {% url 'teams_dashboard' user_data.course_id as teams_page%}
 {% url 'support:contact_us' as support %}
 <div class="rocketc_block">
-        {% if ui_is_block and team_view %}
+        {% if ui_is_block and response.team_view %}
 
             {% if "authToken" in response %}
                 <div class="embed-container" data-beacon-rc="{{key}}">
@@ -45,7 +45,7 @@
                 {{response}}
             {% endif %}
 
-        {% elif not team_view %}
+        {% elif not response.team_view %}
 
             <div class="message-team" style="display: none;">
               <strong><p>
