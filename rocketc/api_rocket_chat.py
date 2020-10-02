@@ -61,7 +61,7 @@ class ApiRocketChat(RocketChat):
         The password is a result from a SHA1 function with the name and salt.
         """
         password = "{}{}".format(name, self.salt)
-        password = hashlib.sha1(password).hexdigest()
+        password = hashlib.sha1(str.encode(password)).hexdigest()
         response = self.users_create(email, name, password, username)
         return handle_response("create_user", response, name=name, username=username, email=email)
 
