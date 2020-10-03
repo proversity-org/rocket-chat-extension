@@ -7,8 +7,8 @@ import re
 import hashlib
 import pkg_resources
 
-from api_teams import ApiTeams  # pylint: disable=relative-import
-from api_rocket_chat import ApiRocketChat  # pylint: disable=relative-import
+from .api_teams import ApiTeams
+from .api_rocket_chat import ApiRocketChat
 
 from lms.djangoapps.teams.models import CourseTeamMembership
 from django.conf import settings
@@ -208,7 +208,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             "user_data": self.user_data,
             "ui_is_block": self.ui_is_block,
             "public_url_service": self.server_data["public_url_service"],
-            "key": hashlib.sha1("{}_{}".format(ROCKET_CHAT_DATA, self.user_data["username"])).hexdigest()
+            "key": hashlib.sha1(
+                str.encode("{}_{}".format(ROCKET_CHAT_DATA, self.user_data["username"])),
+            ).hexdigest()
         }
 
         frag = Fragment(LOADER.render_template(
@@ -286,7 +288,7 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             try:
                 client_id = self.xblock_settings["client_id"]
                 client_secret = self.xblock_settings["client_secret"]
-            except KeyError, xblock_settings_error:
+            except KeyError as xblock_settings_error:
                 LOG.error('Get rocketchat xblock settings error: %s', xblock_settings_error)
                 raise
 
@@ -341,9 +343,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         This method allows to get the course_id
         """
         try:
-            return re.sub('[^A-Za-z0-9]+', '', unicode(self.xmodule_runtime.course_id))
+            return re.sub('[^A-Za-z0-9]+', '', str(self.xmodule_runtime.course_id))
         except AttributeError:
-            course_id = unicode(self.runtime.course_id)
+            course_id = str(self.runtime.course_id)
             return re.sub('[^A-Za-z0-9]+', '', course_id.split("+branch", 1)[0])
 
     def channels_enabled(self):
@@ -383,13 +385,16 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         """
 
         user_data = self.user_data
-        key = hashlib.sha1("{}-{}-{}-{}-{}".format(
-            ROCKET_CHAT_DATA,
-            user_data["username"],
-            self.selected_view,
-            self.default_channel,
-            self._get_team(user_data["username"]),
-        )).hexdigest()
+        key_string = '{prefix}-{user}-{view}-{default}-{team}'.format(
+            prefix=ROCKET_CHAT_DATA,
+            user=user_data['username'],
+            view=self.selected_view,
+            default=self.default_channel,
+            team=self._get_team(user_data['username']),
+        )
+        key = hashlib.sha1(
+            str.encode(key_string),
+        ).hexdigest()
         response = cache.get(key)
 
         if response:
@@ -414,7 +419,9 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         This method allows to get the user's authToken and id
         or creates a user to login in RocketChat
         """
-        key = hashlib.sha1("{}_{}".format(ROCKET_CHAT_DATA, user_data["username"])).hexdigest()
+        key = hashlib.sha1(
+            str.encode("{}_{}".format(ROCKET_CHAT_DATA, user_data["username"])),
+        ).hexdigest()
         data = cache.get(key)
 
         if data:
@@ -450,6 +457,8 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
             custom_fields=generate_custom_fields(course=self.course_id),
             create=True
         )
+
+        return group_name
 
     def _add_user_to_specific_group(self, group_name, user_id):
         """
@@ -514,10 +523,10 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
             self.ui_is_block, default_channel = self._add_user_to_specific_group(default_channel, user_id)
             return default_channel
-        else:
-            self.ui_is_block = False
-            self._add_user_to_course_group(user_id)
-        return None
+
+        self.ui_is_block = False
+
+        return self._add_user_to_course_group(user_id)
 
     def _add_user_to_group(self, user_id, group_name, **kwargs):
         """
@@ -560,19 +569,18 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         """
         This method verifies if teams are available
         """
-        from openedx_dependencies import modulestore  # pylint: disable=relative-import
+        from .openedx_dependencies import modulestore  # pylint: disable=import-error
+
         try:
             course_id = self.runtime.course_id  # pylint: disable=no-member
         except AttributeError:
             return False
 
         course = modulestore().get_course(course_id, depth=0)
-        teams_configuration = course.teams_configuration
-        LOG.info("Team is enabled result: %s", teams_configuration)
-        if "topics" in teams_configuration and teams_configuration["topics"]:
-            return True
 
-        return False
+        LOG.info("Team is enabled result: %s", course.teams_enabled)
+
+        return course.teams_enabled
 
     def _update_user(self, user_id, user_data):
         """
@@ -586,7 +594,8 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
 
     def _user_image_url(self):
         """Returns an image url for the current user"""
-        from openedx_dependencies import get_profile_image_urls_for_user  # pylint: disable=relative-import
+        from .openedx_dependencies import get_profile_image_urls_for_user  # pylint: disable=import-error
+
         current_user = User.objects.get(username=self.user_data["username"])
         profile_image_url = get_profile_image_urls_for_user(current_user)[
             "full"]
@@ -792,9 +801,15 @@ class RocketChatXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixi
         Returns True if the user is privileged in teams discussions for
         this course.
         """
-        from openedx_dependencies import CourseStaffRole  # pylint: disable=relative-import
+        from .openedx_dependencies import CourseStaffRole  # pylint: disable=import-error
 
-        user = User.objects.get(username=username)
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            LOG.info(
+                "RocketChat user: %s does not exist on the platform. User role could not be validated.", username,
+            )
+            return False
 
         if user.is_staff:
             return True
