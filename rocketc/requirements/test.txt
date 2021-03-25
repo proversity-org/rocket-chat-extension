@@ -4,7 +4,7 @@ codecov==1.4.0
 coverage==4.0.2
 pep8==1.7.0
 pylint==1.8
-pyyaml==3.11
+pyyaml==5.4
 mako==1.0.4
 mock==2.0.0
 -e git://github.com/edx/xblock-sdk.git@v0.1.4#egg=xblock-sdk==v0.1.4
